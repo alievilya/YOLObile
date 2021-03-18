@@ -31,11 +31,11 @@ transform = torchvision.transforms.Compose([
 ])
 queryloader = torch.utils.data.DataLoader(
     torchvision.datasets.ImageFolder(query_dir, transform=transform),
-    batch_size=64, shuffle=False
+    batch_size=64, shuffle=False, num_workers=0
 )
 galleryloader = torch.utils.data.DataLoader(
     torchvision.datasets.ImageFolder(gallery_dir, transform=transform),
-    batch_size=64, shuffle=False
+    batch_size=64, shuffle=False, num_workers=0
 )
 
 # net definition

@@ -44,11 +44,11 @@ transform_test = torchvision.transforms.Compose([
 ])
 trainloader = torch.utils.data.DataLoader(
     torchvision.datasets.ImageFolder(train_dir, transform=transform_train),
-    batch_size=64, shuffle=True
+    batch_size=64, shuffle=True, num_workers=0
 )
 testloader = torch.utils.data.DataLoader(
     torchvision.datasets.ImageFolder(test_dir, transform=transform_test),
-    batch_size=64, shuffle=True
+    batch_size=64, shuffle=True, num_workers=0
 )
 num_classes = max(len(trainloader.dataset.classes),
                   len(testloader.dataset.classes))
