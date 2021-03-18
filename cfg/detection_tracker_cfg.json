@@ -1,5 +1,5 @@
 {
-  "weights": "cfg/best14x-49.pt",
+  "weights": "weights/best14x-49.pt",
   "source": "rtsp://admin:admin@192.168.1.18:554/1/h264major",
   "config_deepsort": "deep_sort_pytorch/configs/deep_sort.yaml",
   "cfg": "cfg/csdarknet53s-panet-spp.cfg",
