@@ -67,7 +67,7 @@ def test(cfg,
         batch_size = min(batch_size, len(dataset))
         dataloader = DataLoader(dataset,
                                 batch_size=batch_size,
-                                num_workers=min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8]),
+                                num_workers=0,
                                 pin_memory=True,
                                 collate_fn=dataset.collate_fn)
 

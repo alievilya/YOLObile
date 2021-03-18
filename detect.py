@@ -1,5 +1,5 @@
 import argparse
-
+import torch 
 from models import *  # set ONNX_EXPORT in models.py
 from utils.datasets import *
 from utils.utils import *
@@ -84,19 +84,10 @@ def detect(config):
     else:  # darknet format
         load_darknet_weights(model, weights)
 
-    # Second-stage classifier (not used yet)
-    classify = False
     modelc = 0
-    if classify:
-        modelc = torch_utils.load_classifier(name='resnet101', n=2)  # initialize
-        modelc.load_state_dict(torch.load('weights/resnet101.pt', map_location=device)['model'])  # load weights
-        modelc.to(device).eval()
 
     # Eval mode
     model.to(device).eval()
-
-    # Fuse Conv2d + BatchNorm2d layers
-    # model.fuse()
 
     # Export mode
     if ONNX_EXPORT:
@@ -159,10 +150,6 @@ def detect(config):
 
         pred = non_max_suppression(pred, config["conf_thres"], config["iou_thres"],
                                    multi_label=False, classes=classes, agnostic=config["agnostic_nms"])
-
-        # Apply Classifier
-        if classify:
-            pred = apply_classifier(pred, modelc, img, im0s)
 
         # Process detections
         for i, det in enumerate(pred):  # detections for image i
@@ -279,35 +266,10 @@ def detect(config):
 import json
 
 if __name__ == '__main__':
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument('--cfg', type=str, default='cfg/yolov3-spp.cfg', help='*.cfg path')
-    # parser.add_argument('--names', type=str, default='data/coco.names', help='*.names path')
-    # parser.add_argument('--weights', type=str, default='weights/yolov3-spp-ultralytics.pt', help='weights path')
-    # parser.add_argument('--source', type=str, default='data/samples', help='source')  # input file/folder, 0 for webcam
-    # parser.add_argument('--output', type=str, default='output', help='output folder')  # output folder
-    # parser.add_argument('--img-size', type=int, default=512, help='inference size (pixels)')
-    # parser.add_argument('--conf-thres', type=float, default=0.3, help='object confidence threshold')
-    # parser.add_argument('--iou-thres', type=float, default=0.6, help='IOU threshold for NMS')
-    # parser.add_argument('--fourcc', type=str, default='mp4v', help='output video codec (verify ffmpeg support)')
-    # parser.add_argument('--half', action='store_true', help='half precision FP16 inference')
-    # parser.add_argument('--device', default='', help='device id (i.e. 0 or 0,1) or cpu')
-    # parser.add_argument('--view-img', action='store_true', help='display results')
-    # parser.add_argument('--save-txt', action='store_true', help='save results to *.txt')
-    # parser.add_argument('--classes', nargs='+', type=int, help='filter by class')
-    # parser.add_argument('--agnostic-nms', action='store_true', help='class-agnostic NMS')
-    # parser.add_argument('--augment', action='store_true', help='augmented inference')
-    # parser.add_argument("--config_deepsort", type=str,
-    #                     default="deep_sort_pytorch/configs/deep_sort.yaml")
 
     with open("cfg/detection_tracker_cfg.json") as detection_config:
         detect_config = json.load(detection_config)
     print(detect_config["cfg"])
-    # detect_config =
-    # opt = parser.parse_args()
-
-    # opt.cfg = check_file(opt.cfg)  # check file
-    # opt.names = check_file(opt.names)  # check file
-    # print(opt)
 
     with torch.no_grad():
         detect(config=detect_config)

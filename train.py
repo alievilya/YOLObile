@@ -170,7 +170,7 @@ def train(hyp):
     nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
     dataloader = torch.utils.data.DataLoader(dataset,
                                              batch_size=batch_size,
-                                             num_workers=nw,
+                                             num_workers=0,
                                              shuffle=not opt.rect,
                                              # Shuffle=True unless rectangular training is used
                                              pin_memory=True,
@@ -183,7 +183,7 @@ def train(hyp):
                                                                  cache_images=opt.cache_images,
                                                                  single_cls=opt.single_cls),
                                              batch_size=batch_size,
-                                             num_workers=nw,
+                                             num_workers=0,
                                              pin_memory=True,
                                              collate_fn=dataset.collate_fn)
 
