@@ -1,11 +1,15 @@
 import argparse
-import torch 
+import torch
 from models import *  # set ONNX_EXPORT in models.py
 from utils.datasets import *
 from utils.utils import *
 
 from deep_sort_pytorch.utils.parser import get_config
 from deep_sort_pytorch.deep_sort import DeepSort
+
+from tracking_modules import Counter, get_truth
+from tracking_modules import select_object, read_door_info
+from tracking_modules import find_centroid, Rectangle, rect_square
 
 palette = (2 ** 11 - 1, 2 ** 15 - 1, 2 ** 20 - 1)
 
@@ -52,8 +56,18 @@ def draw_boxes(img, bbox, identities=None, offset=(0, 0)):
 
 
 def detect(config):
-    save_img=False
-    imgsz = (320, 320) if ONNX_EXPORT else config[
+    # door_array = select_object()
+    # door_array = [475, 69, 557, 258]
+    door_array = [475, 69, 557, 258]
+    rect_door = Rectangle(door_array[0], door_array[1], door_array[2], door_array[3])
+    border_door = door_array[3]
+
+    counter = Counter(counter_in=0, counter_out=0, track_id=0)
+    lost_ids = set()
+
+
+    save_img = False
+    imgsz = (416, 416) if ONNX_EXPORT else config[
         "img_size"]  # (320, 192) or (416, 256) or (608, 352) for (height, width)
     out, source, weights, half, view_img, save_txt = config["output"], config["source"], config["weights"], \
                                                      config["half"], config["view_img"], config["save_txt"]
@@ -158,6 +172,9 @@ def detect(config):
             else:
                 p, s, im0 = path, '', im0s
 
+            # door_array = select_object(im0)
+            # print(door_array)
+
             save_path = str(Path(out) / Path(p).name)
             txt_path = str(Path(out)) + '/results.txt'
 
@@ -200,29 +217,54 @@ def detect(config):
 
                 detections = torch.Tensor(bbox_xywh)
                 confidences = torch.Tensor(confs)
+                cv2.rectangle(im0, (int(door_array[0]), int(door_array[1])), (int(door_array[2]), int(door_array[3])),
+                              (23, 158, 21), 3)
 
                 # Pass detections to deepsort
                 if len(detections) == 0:
                     continue
                 outputs = deepsort.update(detections, confidences, im0)
-
+                lost_ids = counter.return_lost_ids()
+                print(lost_ids)
                 # draw boxes for visualization
                 if len(outputs) > 0:
                     bbox_xyxy = outputs[:, :4]
                     identities = outputs[:, -1]
                     draw_boxes(im0, bbox_xyxy, identities)
+                    counter.update_identities(identities)
 
-                # Write MOT compliant results to file
-                if save_txt and len(outputs) != 0:
-                    for j, output in enumerate(outputs):
-                        bbox_left = output[0]
-                        bbox_top = output[1]
-                        bbox_w = output[2]
-                        bbox_h = output[3]
-                        identity = output[-1]
-                        with open(txt_path, 'a') as f:
-                            f.write(('%g ' * 10 + '\n') % (frame_idx, identity, bbox_left,
-                                                           bbox_top, bbox_w, bbox_h, -1, -1, -1, -1))  # label format
+                    for bbox_tracked, id_tracked in zip(bbox_xyxy, identities):
+                        print(id_tracked)
+
+                        if id_tracked not in counter.people_init or counter.people_init[id_tracked] == 0:
+
+                            counter.obj_initialized(id_tracked)
+                            rect_head = Rectangle(bbox_tracked[0], bbox_tracked[1], bbox_tracked[2], bbox_tracked[3])
+
+                            intersection = rect_head & rect_door
+                            if intersection:
+
+                                intersection_square = rect_square(*intersection)
+                                head_square = rect_square(*rect_head)
+                                rat = intersection_square / head_square
+
+                                #     was initialized in door, probably going in
+                                if rat >= 0.6:
+                                    counter.people_init[id_tracked] = 2
+                                #     initialized in the office, mb going out
+                                elif rat <= 0.4 or bbox_tracked[3] > border_door:
+                                    counter.people_init[id_tracked] = 1
+                                #     initialized between the exit and bus, not obvious state
+                                elif rat > 0.4 and rat < 0.6:
+                                    counter.people_init[id_tracked] = 3
+                                    counter.rat_init[id_tracked] = rat
+                            # res is None, means that object is not in door contour
+                            else:
+                                counter.people_init[id_tracked] = 1
+                            counter.people_bbox[id_tracked] = bbox_tracked
+
+                        counter.cur_bbox[id_tracked] = bbox_tracked
+
 
             else:
                 deepsort.increment_ages()
@@ -231,33 +273,83 @@ def detect(config):
             print('%sDone. (%.3fs)' % (s, t2 - t1))
 
             # Stream results
-            if view_img:
-                cv2.imshow(p, im0)
-                if cv2.waitKey(1) == ord('q'):  # q to quit
-                    raise StopIteration
+
+
+        for val in counter.people_init.keys():
+            # check bbox also
+            inter_square = 0
+            cur_square = 0
+            ratio = 0
+            cur_c = find_centroid(counter.cur_bbox[val])
+            init_c = find_centroid(counter.people_bbox[val])
+            vector_person = (cur_c[0] - init_c[0],
+                             cur_c[1] - init_c[1])
+
+            if val in lost_ids and counter.people_init[val] != -1:
+                rect_cur = Rectangle(counter.cur_bbox[val][0], counter.cur_bbox[val][1],
+                                     counter.cur_bbox[val][2], counter.cur_bbox[val][3])
+                inter = rect_cur & rect_door
+                if inter:
+
+                    inter_square = rect_square(*inter)
+                    cur_square = rect_square(*rect_cur)
+                    try:
+                        ratio = inter_square / cur_square
+                    except ZeroDivisionError:
+                        ratio = 0
+
+                # if vector_person < 0 then current coord is less than initialized, it means that man is going
+                # in the exit direction
+                if vector_person[1] > 70 and counter.people_init[val] == 2 \
+                        and ratio < 0.9:  # and counter.people_bbox[val][3] > border_door \
+                    counter.get_in()
+
+                elif vector_person[1] < -70 and counter.people_init[val] == 1 \
+                        and ratio >= 0.6:
+                    counter.get_out()
+
+                elif vector_person[1] < -70 and counter.people_init[val] == 3 \
+                        and ratio > counter.rat_init[val] and ratio >= 0.6:
+                    counter.get_out()
+                elif vector_person[1] > 70 and counter.people_init[val] == 3 \
+                        and ratio < counter.rat_init[val] and ratio < 0.6:
+                    counter.get_in()
+
+                counter.people_init[val] = -1
+                lost_ids.remove(val)
+            del val
+
+        ins, outs = counter.show_counter()
+        print(ins, outs)
+        cv2.rectangle(im0, (0, 0), (250, 50),
+                      (0, 0, 0), -1, 8)
+        cv2.putText(im0, "in: {}, out: {} ".format(ins, outs), (10, 35), 0,
+                    1e-3 * im0.shape[0], (255, 255, 255), 3)
+
+
+        if view_img:
+            cv2.imshow(p, im0)
+            if cv2.waitKey(1) == ord('q'):  # q to quit
+                raise StopIteration
 
             # Save results (image with detections)
-            if save_img:
-                print('saving img!')
-                if dataset.mode == 'images':
-                    cv2.imwrite(save_path, im0)
-                else:
-                    print('saving video!')
-                    if vid_path != save_path:  # new video
-                        vid_path = save_path
-                        if isinstance(vid_writer, cv2.VideoWriter):
-                            vid_writer.release()  # release previous video writer
+        if save_img:
+            print('saving img!')
+            if dataset.mode == 'images':
+                cv2.imwrite(save_path, im0)
+            else:
+                print('saving video!')
+                if vid_path != save_path:  # new video
+                    vid_path = save_path
+                    if isinstance(vid_writer, cv2.VideoWriter):
+                        vid_writer.release()  # release previous video writer
 
-                        fps = vid_cap.get(cv2.CAP_PROP_FPS)
-                        w = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                        h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                        vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*config["fourcc"]), fps, (w, h))
-                    vid_writer.write(im0)
+                    fps = vid_cap.get(cv2.CAP_PROP_FPS)
+                    w = int(vid_cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    h = int(vid_cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    vid_writer = cv2.VideoWriter(save_path, cv2.VideoWriter_fourcc(*config["fourcc"]), fps, (w, h))
+                vid_writer.write(im0)
 
-    if save_txt or save_img:
-        print('Results saved to %s' % os.getcwd() + os.sep + out)
-        if platform == 'darwin':  # MacOS
-            os.system('open ' + save_path)
 
     print('Done. (%.3fs)' % (time.time() - t0))
 
@@ -266,7 +358,6 @@ def detect(config):
 import json
 
 if __name__ == '__main__':
-
     with open("cfg/detection_tracker_cfg.json") as detection_config:
         detect_config = json.load(detection_config)
     print(detect_config["cfg"])
