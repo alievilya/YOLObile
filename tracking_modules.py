@@ -44,10 +44,8 @@ class Counter:
     def obj_initialized(self, track_id):
         self.people_init[track_id] = 0
 
-
     def zero_age(self, track_id):
         self.age_counter[track_id] = 0
-
 
     def age_increment(self):
         x = None
@@ -59,10 +57,12 @@ class Counter:
         if self.age_counter.get(x):
             del self.age_counter[x]
 
+    def clear_lost_ids(self):
+        self.lost_ids = set()
 
     def update_identities(self, identities):
         for tr_i in identities:
-            if tr_i in self.age_counter.keys() :
+            if tr_i in self.age_counter.keys():
                 if self.age_counter.get(tr_i) is None:
                     self.age_counter[tr_i] = 0
                 else:
@@ -70,15 +70,12 @@ class Counter:
             else:
                 self.age_counter[tr_i] = 0
 
-
     def return_lost_ids(self):
         self.age_increment()
         return self.lost_ids
 
-
     def get_age(self, track_id):
         return self.age_counter.get(track_id)
-
 
     def get_in(self):
         self.counter_in += 1
@@ -92,6 +89,10 @@ class Counter:
     def return_total_count(self):
         return self.counter_in + self.counter_out
 
+
+class Writer():
+    def __init__(self):
+        self.is_writing = True
 
 rect_endpoint_tmp = []
 rect_bbox = []
@@ -200,7 +201,6 @@ def read_door_info(name='doors_info.csv'):
             val[i] = int(v)
         door_info[line_l[0]] = val
     return door_info
-
 
 
 def bb_intersection_over_union(boxA, boxB):
