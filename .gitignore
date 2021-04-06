@@ -23,6 +23,8 @@
 *.cfg
 !cfg/yolov3*.cfg
 
+weights/best14x-49.pt
+
 storage.googleapis.com
 runs/*
 data/*
