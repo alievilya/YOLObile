@@ -5,16 +5,16 @@ token = "1780388562:AAEzyzS9YRCPQF6rME6A9U4lWArR6QDDYYM"
 bot = telebot.TeleBot(token)
 
 
-
-def send_new_posts(video_name):
+def send_new_posts(videoname, actionname):
     channel = '-1001388181852'
-    video = open(video_name, 'rb')
-
-    bot.send_video(channel, video, timeout=10000)
-    bot.send_message(channel, "{}".format(video_name))
+    video_path = os.path.join("output", videoname)
+    video = open(video_path, 'rb')
+    video_time = videoname[:-4].split()
+    bot.send_message(channel, "Человек {} в {}:{}:{}".format(actionname, video_time[0], video_time[1], video_time[2]))
+    bot.send_video(channel, video, timeout=50)
     # bot.send_message(channel, "короче я домой)) оставлю запущенным пока")
     # Спим секунду, чтобы избежать разного рода ошибок и ограничений (на всякий случай!)
-    time.sleep(1)
+    # time.sleep(1)
     return
 
 
