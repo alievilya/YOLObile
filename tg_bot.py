@@ -4,12 +4,12 @@ import os
 token = "1780388562:AAEzyzS9YRCPQF6rME6A9U4lWArR6QDDYYM"
 bot = telebot.TeleBot(token)
 
-video_name = "data_files/test2.mp4"
 
 
-def send_new_posts(video_name=video_name):
+def send_new_posts(video_name):
     channel = '-1001388181852'
     video = open(video_name, 'rb')
+
     bot.send_video(channel, video, timeout=10000)
     bot.send_message(channel, "{}".format(video_name))
     # bot.send_message(channel, "короче я домой)) оставлю запущенным пока")
@@ -27,4 +27,4 @@ if __name__ == '__main__':
         if video_name[-3:] == "mp4" and video_name not in sent_videos:
             send_new_posts(video_path)
             sent_videos.append(video_name)
-        bot.polling(none_stop=True, timeout=333)
+        # bot.polling(none_stop=True, timeout=333)

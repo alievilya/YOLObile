@@ -2,13 +2,13 @@ from deep_sort_pytorch.deep_sort import DeepSort
 from deep_sort_pytorch.utils.parser import get_config
 from time import gmtime
 from time import strftime
+import telebot
 
 from models import *  # set ONNX_EXPORT in models.py
 from tracking_modules import Counter, Writer
 from tracking_modules import find_centroid, Rectangle, rect_square
 from utils.datasets import *
 from utils.utils import *
-
 
 palette = (2 ** 11 - 1, 2 ** 15 - 1, 2 ** 20 - 1)
 
@@ -55,13 +55,28 @@ def draw_boxes(img, bbox, identities=None, offset=(0, 0)):
 
 
 def detect(config):
+    token = "1780388562:AAEzyzS9YRCPQF6rME6A9U4lWArR6QDDYYM"
+    bot = telebot.TeleBot(token)
+    sent_videos = set()
+    video_name = ""
+    action_occured = ""
+    def send_new_posts(config, videoname, actionname):
+        channel = '-1001388181852'
+        video_path = os.path.join(config["output"], videoname)
+        video = open(video_path, 'rb')
+        video_time = videoname[:-4].split()
+        bot.send_message(channel, "Человек {} в {}:{}:{}".format(actionname, video_time[0], video_time[1], video_time[2]))
+        bot.send_video(channel, video, timeout=50)
+        # bot.send_message(channel, "короче я домой)) оставлю запущенным пока")
+        # Спим секунду, чтобы избежать разного рода ошибок и ограничений (на всякий случай!)
+        # time.sleep(1)
+        return
+
     # door_array = select_object()
     # door_array = [475, 69, 557, 258]
     global flag, vid_writer, output_video, lost_ids, output_name
     door_array = [475, 69, 557, 258]
     rect_door = Rectangle(door_array[0], door_array[1], door_array[2], door_array[3])
-    border_door = door_array[3]
-
     counter = Counter(counter_in=0, counter_out=0, track_id=0)
 
     counter_frames_indoor = 0
@@ -237,7 +252,7 @@ def detect(config):
                     for bbox_tracked, id_tracked in zip(bbox_xyxy, identities):
 
                         rect_detection = Rectangle(bbox_tracked[0], bbox_tracked[1],
-                                                  bbox_tracked[2], bbox_tracked[3])
+                                                   bbox_tracked[2], bbox_tracked[3])
                         inter_detection = rect_detection & rect_door
                         if inter_detection:
                             inter_square_detection = rect_square(*inter_detection)
@@ -250,9 +265,11 @@ def detect(config):
                             #     флаг о начале записи
                             flag_personindoor = True
                             counter_frames_indoor = 1
-                            timestr = strftime("%H_%M_%S", gmtime())
+                            hour_greenvich = strftime("%H", gmtime())
+                            hour_moscow = str(int(hour_greenvich) + 3)
+                            video_name = hour_moscow + strftime(" %M %S", gmtime()) + '.mp4'
                             # TODO moscow time
-                            output_name = 'output/{}.mp4'.format(timestr)
+                            output_name = 'output/{}'.format(video_name)
                             output_video = cv2.VideoWriter(output_name, fourcc, 5, (1280, 720))
                             #  чел в контуре двери
 
@@ -316,14 +333,16 @@ def detect(config):
                         and ratio < 0.6:
                     counter.get_in()
                     counter.people_init[val] = -1
-                    flag_stop_writing = True #  флаг об окончании записи
+                    flag_stop_writing = True  # флаг об окончании записи
                     counter_frames_indoor = 0
+                    action_occured = "зашёл"
                 elif vector_person[1] < -50 and counter.people_init[val] == 1 \
                         and ratio >= 0.4:
                     counter.get_out()
                     counter.people_init[val] = -1
                     flag_stop_writing = True
                     counter_frames_indoor = 0
+                    action_occured = "вышел"
                 # elif vector_person[1] < -50 and counter.people_init[val] == 3 \
                 #         and ratio > counter.rat_init[val] and ratio >= 0.6:
                 #     counter.get_out()
@@ -336,7 +355,6 @@ def detect(config):
                 #
                 #     counter_frames_indoor = 0
 
-
                 lost_ids.remove(val)
             del val
             counter.clear_lost_ids()
@@ -346,7 +364,6 @@ def detect(config):
                       (0, 0, 0), -1, 8)
         cv2.putText(im0, "in: {}, out: {} ".format(ins, outs), (10, 35), 0,
                     1e-3 * im0.shape[0], (255, 255, 255), 3)
-
 
         if counter_frames_indoor != 0:
             counter_frames_indoor += 1
@@ -361,9 +378,11 @@ def detect(config):
                 if os.path.exists(output_name):
                     os.remove(output_name)
 
-
         if flag_stop_writing:
             output_video.release()
+            if video_name[-3:] == "mp4" and video_name not in sent_videos and os.path.exists(output_name):
+                send_new_posts(config, video_name, action_occured)
+                sent_videos.add(video_name)
             flag_stop_writing = False
             flag_personindoor = False
             counter_frames_indoor = 0
