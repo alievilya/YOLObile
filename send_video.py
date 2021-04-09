@@ -23,9 +23,11 @@ def send_new_posts(videoname, actionname):
     video_path = os.path.join("output", videoname)
     video = open(video_path, 'rb')
     video_time = videoname[:-4].split()
-    bot.send_message(channel,
-                     "Человек {} в {}:{}:{}".format(actionname, video_time[0], video_time[1], video_time[2]))
-    bot.send_video(channel, video, timeout=50)
+    text_caption="Человек {} в {}:{}:{}".format(actionname, video_time[0], video_time[1], video_time[2])
+
+    # bot.send_message(chat_id=channel,text="Человек {} в {}:{}:{}".
+    #                  format(actionname, video_time[0], video_time[1], video_time[2]))
+    bot.send_document(chat_id=channel, data=video, caption=text_caption) #, timeout=50)
     # bot.send_message(channel, "короче я домой)) оставлю запущенным пока")
     # Спим секунду, чтобы избежать разного рода ошибок и ограничений (на всякий случай!)
     # time.sleep(1)

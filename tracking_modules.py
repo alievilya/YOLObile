@@ -43,6 +43,8 @@ class Counter:
 
     def obj_initialized(self, track_id):
         self.people_init[track_id] = 0
+    def cur_bbox_initialized(self):
+        self.cur_bbox = OrderedDict()
 
     def zero_age(self, track_id):
         self.age_counter[track_id] = 0
@@ -92,7 +94,54 @@ class Counter:
 
 class Writer():
     def __init__(self):
-        self.is_writing = True
+        self.max_counter_frames_indoor = 50
+        self.counter_frames_indoor = 0
+        self.flag_stop_writing = False
+        self.flag_personindoor = False
+        self.id_last = None
+        self.id_inside_detected = None
+        self.action_occured = ""
+        self.video_name = ""
+        self.output_name = ""
+        self.fps = 3
+        self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+
+
+    def set_video(self, video_name):
+        self.video_name = video_name
+        self.output_name = "output/" + self.video_name
+        self.output_video = cv2.VideoWriter(self.output_name, self.fourcc, 5, (1280, 720))
+
+    def set_id(self, id):
+        self.id_inside_detected = id
+
+    def continue_writing(self, im):
+        if self.counter_frames_indoor != 0:
+            self.counter_frames_indoor += 1
+            self.output_video.write(im)
+            # return True
+
+        if self.counter_frames_indoor == self.max_counter_frames_indoor:
+            self.counter_frames_indoor = 0
+            self.flag_personindoor = False
+            self.flag_stop_writing = False
+
+            if self.output_video.isOpened():
+                self.output_video.release()
+
+                if os.path.exists(self.output_name):
+                    os.remove(self.output_name)
+
+    def stop_writing(self, im):
+        if self.flag_stop_writing:
+            self.output_video.write(im)
+            if self.video_name[-3:] == "mp4" and self.video_name and os.path.exists(self.output_name):
+                self.output_video.release()
+                self.flag_stop_writing = False
+                return True
+
+                # send_new_posts(video_name, action_occured)
+
 
 rect_endpoint_tmp = []
 rect_bbox = []

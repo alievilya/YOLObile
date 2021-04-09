@@ -2,16 +2,16 @@ from deep_sort_pytorch.deep_sort import DeepSort
 from deep_sort_pytorch.utils.parser import get_config
 from time import gmtime
 from time import strftime
-import telebot
+import socket
+import time
+from numba import njit
 
 from models import *  # set ONNX_EXPORT in models.py
 from tracking_modules import Counter, Writer
 from tracking_modules import find_centroid, Rectangle, rect_square, select_object
 from utils.datasets import *
 from utils.utils import *
-import socket
-import time
-from numba import njit
+
 
 palette = (2 ** 11 - 1, 2 ** 15 - 1, 2 ** 20 - 1)
 
@@ -61,7 +61,6 @@ def detect(config):
 
     sent_videos = set()
     video_name = ""
-    action_occured = ""
 
     # door_array = select_object()
     # door_array = [475, 69, 557, 258]
@@ -74,8 +73,6 @@ def detect(config):
     PORT = 8084
 
     counter = Counter(counter_in=0, counter_out=0, track_id=0)
-
-    counter_frames_indoor = 0
     save_img = True
 
     imgsz = (416, 416) if ONNX_EXPORT else config[
@@ -97,10 +94,7 @@ def detect(config):
     if os.path.exists(out):
         shutil.rmtree(out)  # delete output folder
     os.makedirs(out)  # make new output folder
-    fourcc = cv2.VideoWriter_fourcc(*'MP4V')
-
     half = device.type != 'cpu'  # half precision only supported on CUDA
-
     # Initialize model
     model = Darknet(config["cfg"], imgsz)
 
@@ -151,12 +145,14 @@ def detect(config):
     t0 = time.time()
     img = torch.zeros((1, 3, imgsz, imgsz), device=device)  # init img
     _ = model(img.half() if half else img.float()) if device.type != 'cpu' else None  # run once
-    flag_personindoor = False
+    # flag_personindoor = False
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((HOST, PORT))
+        VideoHandler = Writer()
         for frame_idx, (path, img, im0s, vid_cap) in enumerate(dataset):
-            flag_stop_writing = False
+            # counter.cur_bbox_initialized()
+            # flag_stop_writing = False
             inter_square = 0
             ratio_detection = 0
             img = torch.from_numpy(img).to(device)
@@ -246,15 +242,17 @@ def detect(config):
                                     ratio_detection = inter_square_detection / cur_square_detection
                                 except ZeroDivisionError:
                                     ratio_detection = 0
-                            if ratio_detection > 0 and counter_frames_indoor == 0:
+                            if ratio_detection > 0 and VideoHandler.counter_frames_indoor == 0:
                                 #     флаг о начале записи
-                                flag_personindoor = True
-                                counter_frames_indoor = 1
+                                VideoHandler.flag_personindoor = True
+                                VideoHandler.counter_frames_indoor = 1
                                 hour_greenvich = strftime("%H", gmtime())
                                 hour_moscow = str(int(hour_greenvich) + 3)
                                 video_name = hour_moscow + strftime(" %M %S", gmtime()) + '.mp4'
-                                output_name = 'output/{}'.format(video_name)
-                                output_video = cv2.VideoWriter(output_name, fourcc, 5, (1280, 720))
+                                VideoHandler.set_video(video_name)
+                                VideoHandler.set_id(id_tracked)
+                                # output_name = 'output/{}'.format(video_name)
+                                # output_video = cv2.VideoWriter(output_name, fourcc, 5, (1280, 720))
                                 #  чел в контуре двери
 
                             if id_tracked not in counter.people_init or counter.people_init[id_tracked] == 0:
@@ -280,6 +278,7 @@ def detect(config):
                                 # res is None, means that object is not in door contour
                                 else:
                                     counter.people_init[id_tracked] = 1
+
                                 counter.people_bbox[id_tracked] = bbox_tracked
 
                             counter.cur_bbox[id_tracked] = bbox_tracked
@@ -318,16 +317,22 @@ def detect(config):
                             and ratio < 0.6:
                         counter.get_in()
                         counter.people_init[val] = -1
-                        flag_stop_writing = True  # флаг об окончании записи
-                        counter_frames_indoor = 0
-                        action_occured = "зашёл"
+                        VideoHandler.flag_stop_writing = True  # флаг об окончании записи
+                        VideoHandler.counter_frames_indoor = 0
+                        VideoHandler.id_last = val
+                        VideoHandler.action_occured = "зашёл"
+                        # del counter.people_init[val]
+
                     elif vector_person[1] < -50 and counter.people_init[val] == 1 \
                             and ratio >= 0.4:
                         counter.get_out()
                         counter.people_init[val] = -1
-                        flag_stop_writing = True
-                        counter_frames_indoor = 0
-                        action_occured = "вышел"
+                        VideoHandler.flag_stop_writing = True  # флаг об окончании записи
+                        VideoHandler.counter_frames_indoor = 0
+                        VideoHandler.id_last = val
+                        VideoHandler.action_occured = "вышел"
+                        # del counter.people_init[val]
+
                     # elif vector_person[1] < -50 and counter.people_init[val] == 3 \
                     #         and ratio > counter.rat_init[val] and ratio >= 0.6:
                     #     counter.get_out()
@@ -341,7 +346,7 @@ def detect(config):
                     #     counter_frames_indoor = 0
 
                     lost_ids.remove(val)
-                del val
+                # del counter.cur_bbox[val]
                 counter.clear_lost_ids()
 
             ins, outs = counter.show_counter()
@@ -351,36 +356,39 @@ def detect(config):
                         1e-3 * im0.shape[0], (255, 255, 255), 3)
 
 
-            if flag_stop_writing:
-                output_video.write(im0)
-                output_video.release()
-                if video_name[-3:] == "mp4" and video_name not in sent_videos and os.path.exists(output_name):
+            # if flag_stop_writing:
+            #     output_video.write(im0)
+            #     output_video.release()
+            #     if video_name[-3:] == "mp4" and video_name not in sent_videos and os.path.exists(output_name):
+            print('flag_personindoor: ', VideoHandler.flag_personindoor)
+            print('flag_stop_writing: ', VideoHandler.flag_stop_writing)
+            print('counter_frames_indoor: ', VideoHandler.counter_frames_indoor)
+
+            if VideoHandler.stop_writing(im0):
                     # send_new_posts(video_name, action_occured)
-                    sock.sendall(bytes(video_name + ":" + action_occured, "utf-8"))
-                    data = sock.recv(100)
-                    print('Received', repr(data.decode("utf-8")))
-                    sent_videos.add(video_name)
-                flag_stop_writing = False
-                flag_personindoor = False
-                counter_frames_indoor = 0
-            else:
-                if counter_frames_indoor != 0:
-                    counter_frames_indoor += 1
-                    output_video.write(im0)
-                if counter_frames_indoor == 50:
-                    flag_stop_writing = False
-                    flag_personindoor = False
-                    counter_frames_indoor = 0
-                    if output_video.isOpened():
-                        output_video.release()
-                        if os.path.exists(output_name):
-                            os.remove(output_name)
+                sock.sendall(bytes(VideoHandler.video_name + ":" + VideoHandler.action_occured, "utf-8"))
+                data = sock.recv(100)
+                print('Received', repr(data.decode("utf-8")))
+                sent_videos.add(video_name)
+                VideoHandler = Writer()
+
+            else: # TODO CHECK if person inside and still not counted
+
+                VideoHandler.continue_writing(im0)
+                # if counter_frames_indoor != 0:
+                #     counter_frames_indoor += 1
+                #     output_video.write(im0)
+                # if counter_frames_indoor == 50:
+                #
+                #     VideoHandler.flag_stop_writing = False
+                #     VideoHandler.flag_personindoor = False
+                #     VideoHandler.counter_frames_indoor = 0
+                #     if output_video.isOpened():
+                #         output_video.release()
+                #         if os.path.exists(output_name):
+                #             os.remove(output_name)
 
 
-
-            print('flag_personindoor: ', flag_personindoor)
-            print('flag_stop_writing: ', flag_stop_writing)
-            print('counter_frames_indoor: ', counter_frames_indoor)
 
             if view_img:
                 cv2.imshow(p, im0)
