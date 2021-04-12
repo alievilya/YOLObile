@@ -33,7 +33,7 @@ class Counter:
         self.rat_init = OrderedDict()
 
         self.age_counter = OrderedDict()
-
+        self.frame_age_counter = OrderedDict()
         self.lost_ids = set()
 
         # self.dissappeared_frames = OrderedDict()
@@ -65,11 +65,15 @@ class Counter:
     def update_identities(self, identities):
         for tr_i in identities:
             if tr_i in self.age_counter.keys():
+                if self.frame_age_counter.get(tr_i) is None:
+                    self.frame_age_counter[tr_i] = 0
                 if self.age_counter.get(tr_i) is None:
                     self.age_counter[tr_i] = 0
                 else:
                     self.age_counter[tr_i] = 0
+                    self.frame_age_counter[tr_i] += 1
             else:
+                # TODO общий счетчик кадров с человеком
                 self.age_counter[tr_i] = 0
 
     def return_lost_ids(self):
