@@ -702,9 +702,9 @@ def train(hyp):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--epochs', type=int, default=300)  # 500200 batches at bs 16, 117263 COCO images = 273 epochs
-    parser.add_argument('--batch-size', type=int, default=16)  # effective bs = batch_size * accumulate = 16 * 4 = 64
+    parser.add_argument('--batch-size', type=int, default=4)  # effective bs = batch_size * accumulate = 16 * 4 = 64
     parser.add_argument('--cfg', type=str, default='cfg/csdarknet53s-panet-spp.cfg', help='*.cfg path')
-    parser.add_argument('--data', type=str, default='data/coco2014.data', help='*.data path')
+    parser.add_argument('--data', type=str, default='head-train.data', help='*.data path')
     parser.add_argument('--multi-scale', action='store_true', help='adjust (67%% - 150%%) img_size every 10 batches')
     parser.add_argument('--img-size', nargs='+', type=int, default=[320, 640], help='[min_train, max-train, test]')
     parser.add_argument('--rect', action='store_true', help='rectangular training')
@@ -720,8 +720,8 @@ if __name__ == '__main__':
     parser.add_argument('--adam', action='store_true', help='use adam optimizer')
     parser.add_argument('--single-cls', action='store_true', help='train as single-class dataset')
     parser.add_argument('--freeze-layers', action='store_true', help='Freeze non-output layers')
-
-    parser.add_argument('--admm-file', type=str, default='admm', help='admm configuration file')
+    parser.add_argument('--admm-file', type=str, default='darknet_admm', help='admm configuration file')
+    # parser.add_argument('--admm-file', type=str, default='admm', help='admm configuration file')
 
     opt = parser.parse_args()
     if (opt.admm_file):

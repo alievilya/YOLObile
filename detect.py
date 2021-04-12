@@ -262,7 +262,6 @@ def detect(config):
     print('Done. (%.3fs)' % (time.time() - t0))
 
 
-# python detect.py --cfg cfg/csdarknet53s-panet-spp.cfg --weights cfg/best14x-49.pt --source 0
 import json
 
 if __name__ == '__main__':
