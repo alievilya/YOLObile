@@ -1,10 +1,9 @@
 {
   "weights": "weights/best14x-49.pt",
-  "weights0": "model_pruned/govnovesa.pt",
-  "source": "rtsp://admin:admin@192.168.1.18:554/1/h264major",
+  "source": "rtsp://admin:admin@192.168.1.52:554/1/h264major",
+  "source0": "data/videos/test1.mp4",
   "config_deepsort": "deep_sort_pytorch/configs/deep_sort.yaml",
   "cfg": "cfg/csdarknet53s-panet-spp.cfg",
-  "cfg0": "prune_config/config_csdarknet53pan_v14.yaml",
   "needed_classes": "person",
   "names": "data/coco.names",
   "device": "0",
