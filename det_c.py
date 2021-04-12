@@ -265,11 +265,12 @@ def detect(config):
                                     head_square = rect_square(*rect_head)
                                     rat = intersection_square / head_square
                                     #     was initialized in door, probably going in
-                                    if rat >= 0.6:
+                                    if rat >= 0.5:
                                         counter.people_init[id_tracked] = 2
                                     #     initialized in the office, mb going out
-                                    elif rat < 0.4:
+                                    elif rat < 0.5:
                                         counter.people_init[id_tracked] = 1
+                                    counter.frame_age_counter[id_tracked] = 0
                                     #     initialized between the exit and bus, not obvious state
                                     # elif rat > 0.4 and rat < 0.6:
                                     #     counter.people_init[id_tracked] = 3
@@ -314,7 +315,7 @@ def detect(config):
                     # if vector_person < 0 then current coord is less than initialized, it means that man is going
                     # in the exit direction
                     if vector_person[1] > 50 and counter.people_init[val] == 2 \
-                            and ratio < 0.6:
+                            and ratio < 0.5:
                         counter.get_in()
                         counter.people_init[val] = -1
                         VideoHandler.flag_stop_writing = True  # флаг об окончании записи
@@ -324,7 +325,7 @@ def detect(config):
                         # del counter.people_init[val]
 
                     elif vector_person[1] < -50 and counter.people_init[val] == 1 \
-                            and ratio >= 0.4:
+                            and ratio >= 0.5:
                         counter.get_out()
                         counter.people_init[val] = -1
                         VideoHandler.flag_stop_writing = True  # флаг об окончании записи
@@ -332,7 +333,6 @@ def detect(config):
                         VideoHandler.id_last = val
                         VideoHandler.action_occured = "вышел"
                         # del counter.people_init[val]
-
                     # elif vector_person[1] < -50 and counter.people_init[val] == 3 \
                     #         and ratio > counter.rat_init[val] and ratio >= 0.6:
                     #     counter.get_out()
@@ -344,8 +344,39 @@ def detect(config):
                     #     flag_stop_writing = True
                     #
                     #     counter_frames_indoor = 0
-
                     lost_ids.remove(val)
+                elif counter.frame_age_counter.get(val, 0 ) >= 35 and counter.people_init[val] != -1:
+                    if inter:
+                        inter_square = rect_square(*inter)
+                        cur_square = rect_square(*rect_cur)
+                        try:
+                            ratio = inter_square / cur_square
+                        except ZeroDivisionError:
+                            ratio = 0
+
+                    if vector_person[1] > 50 and counter.people_init[val] == 2 \
+                            and ratio < 0.5:
+                        counter.get_in()
+                        counter.people_init[val] = -1
+                        VideoHandler.flag_stop_writing = True  # флаг об окончании записи
+                        VideoHandler.counter_frames_indoor = 0
+                        VideoHandler.id_last = val
+                        VideoHandler.action_occured = "зашёл (не потерян)"
+
+                    # elif vector_person[1] < -50 and counter.people_init[val] == 1 \
+                    #         and ratio >= 0.5:
+                    #     counter.get_out()
+                    #     counter.people_init[val] = -1
+                    #     VideoHandler.flag_stop_writing = True  # флаг об окончании записи
+                    #     VideoHandler.counter_frames_indoor = 0
+                    #     VideoHandler.id_last = val
+                    #     VideoHandler.action_occured = "вышел (был внутри)"
+                    counter.age_counter[val] = 0
+                        # del counter.people_init[val]
+
+                                            # del counter.people_init[val]
+
+
                 # del counter.cur_bbox[val]
                 counter.clear_lost_ids()
 
