@@ -1,9 +1,10 @@
+import itertools
+import os
 from collections import OrderedDict
+from time import gmtime
+from time import strftime
 
 import cv2
-import os
-import numpy as np
-import itertools
 
 
 class CountTruth:
@@ -27,6 +28,10 @@ def get_truth(video_name):
 
 class Counter:
     def __init__(self, counter_in, counter_out, track_id):
+        self.fps = 5
+        self.max_frame_age_counter = self.fps * 6
+        self.max_age_counter = self.fps * 4
+
         self.people_init = OrderedDict()
         self.people_bbox = OrderedDict()
         self.cur_bbox = OrderedDict()
@@ -43,6 +48,13 @@ class Counter:
 
     def obj_initialized(self, track_id):
         self.people_init[track_id] = 0
+
+    def delete_person_data(self, track_id):
+        del self.people_init[track_id]
+        del self.people_bbox[track_id]
+        del self.frame_age_counter[track_id]
+
+
     def cur_bbox_initialized(self):
         self.cur_bbox = OrderedDict()
 
@@ -53,7 +65,7 @@ class Counter:
         x = None
         for tr in self.age_counter.keys():
             self.age_counter[tr] += 1
-            if self.age_counter[tr] >= 20:
+            if self.age_counter[tr] >= self.max_age_counter:
                 self.lost_ids.add(tr)
                 x = tr
         if self.age_counter.get(x):
@@ -95,29 +107,48 @@ class Counter:
     def return_total_count(self):
         return self.counter_in + self.counter_out
 
+    def set_fps(self, frames_per_second):
+        self.fps = frames_per_second
+
 
 class Writer():
     def __init__(self):
-        self.max_counter_frames_indoor = 50
+        self.fps = 5
+        self.max_counter_frames_indoor = self.fps * 10
+        self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
         self.counter_frames_indoor = 0
         self.flag_stop_writing = False
         self.flag_personindoor = False
-        self.id_last = None
-        self.id_inside_detected = None
+        self.id_inside_door_detected = []
         self.action_occured = ""
         self.video_name = ""
         self.output_name = ""
-        self.fps = 3
-        self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
 
 
     def set_video(self, video_name):
+        self.max_counter_frames_indoor = self.fps * 10
         self.video_name = video_name
         self.output_name = "output/" + self.video_name
-        self.output_video = cv2.VideoWriter(self.output_name, self.fourcc, 5, (1280, 720))
+        self.output_video = cv2.VideoWriter(self.output_name, self.fourcc, self.fps, (1280, 720))
 
     def set_id(self, id):
-        self.id_inside_detected = id
+        self.id_inside_door_detected.append(id)
+
+
+    def start_video(self, id_tracked):
+        self.flag_personindoor = True
+        self.counter_frames_indoor = 1
+        hour_greenvich = strftime("%H", gmtime())
+        hour_moscow = str(int(hour_greenvich) + 3)
+        video_name = hour_moscow + strftime(" %M %S", gmtime()) + '.mp4'
+        self.set_video(video_name)
+        self.set_id(id_tracked)
+
+    def continue_opened_video(self):
+        self.max_counter_frames_indoor += 10
+
+    def set_fps(self, frames_per_second):
+        self.fps = frames_per_second
 
     def continue_writing(self, im):
         if self.counter_frames_indoor != 0:
@@ -342,3 +373,45 @@ def pairwise(iterable):
 
 def rect_square(x1, y1, x2, y2):
     return abs(x1 - x2) * abs(y1 - y2)
+
+
+def bbox_rel(*xyxy):
+    """" Calculates the relative bounding box from absolute pixel values. """
+    bbox_left = min([xyxy[0].item(), xyxy[2].item()])
+    bbox_top = min([xyxy[1].item(), xyxy[3].item()])
+    bbox_w = abs(xyxy[0].item() - xyxy[2].item())
+    bbox_h = abs(xyxy[1].item() - xyxy[3].item())
+    x_c = (bbox_left + bbox_w / 2)
+    y_c = (bbox_top + bbox_h / 2)
+    w = bbox_w
+    h = bbox_h
+    return x_c, y_c, w, h
+
+
+def compute_color_for_labels(label):
+    """
+    Simple function that adds fixed color depending on the class
+    """
+    palette = (2 ** 11 - 1, 2 ** 15 - 1, 2 ** 20 - 1)
+    color = [int((p * (label ** 2 - label + 1)) % 255) for p in palette]
+    return tuple(color)
+
+
+def draw_boxes(img, bbox, identities=None, offset=(0, 0)):
+    for i, box in enumerate(bbox):
+        x1, y1, x2, y2 = [int(i) for i in box]
+        x1 += offset[0]
+        x2 += offset[0]
+        y1 += offset[1]
+        y2 += offset[1]
+        # box text and bar
+        id = int(identities[i]) if identities is not None else 0
+        color = compute_color_for_labels(id)
+        label = '{}{:d}'.format("", id)
+        t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_PLAIN, 2, 2)[0]
+        cv2.rectangle(img, (x1, y1), (x2, y2), color, 3)
+        cv2.rectangle(
+            img, (x1, y1), (x1 + t_size[0] + 3, y1 + t_size[1] + 4), color, -1)
+        cv2.putText(img, label, (x1, y1 +
+                                 t_size[1] + 4), cv2.FONT_HERSHEY_PLAIN, 2, [255, 255, 255], 2)
+    return img
