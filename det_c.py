@@ -79,14 +79,15 @@ def detect(config):
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in range(len(names))]
 
     # Run inference
-    t0 = time.time()
+
     img = torch.zeros((1, 3, imgsz, imgsz), device=device)  # init img
     _ = model(img.half() if half else img.float()) if device.type != 'cpu' else None  # run once
     # flag_personindoor = False
-
+    fps_measurements = []
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((HOST, PORT))
         for frame_idx, (path, img, im0s, vid_cap) in enumerate(dataset):
+            t0 = time.time()
             ratio_detection = 0
             img = torch.from_numpy(img).to(device)
             img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -304,12 +305,16 @@ def detect(config):
                 if cv2.waitKey(1) == ord('q'):  # q to quit
                     raise StopIteration
 
-        delta_time = (time.time() - t0)
-        print('Done. (%.3fs)' % delta_time)
-        fps = int(1 / delta_time)
-        VideoHandler.set_fps(fps)
-        counter.set_fps(fps)
-
+            delta_time = (time.time() - t0)
+            frame_fps = int(1 / delta_time)
+            if len(fps_measurements) == 20:
+                fps = np.mean(fps_measurements)
+                VideoHandler.set_fps(fps)
+                counter.set_fps(fps)
+            elif len(fps_measurements) < 20:
+                fps_measurements = np.append(fps_measurements, frame_fps)
+            else:
+                continue
     # vid_writer.release()
 
 
