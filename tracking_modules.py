@@ -114,12 +114,12 @@ class Counter:
 class Writer():
     def __init__(self):
         self.fps = 5
-        self.max_counter_frames_indoor = self.fps * 10
+        self.max_counter_frames_indoor = self.fps * 8
         self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
         self.counter_frames_indoor = 0
         self.flag_stop_writing = False
         self.flag_personindoor = False
-        self.id_inside_door_detected = []
+        self.id_inside_door_detected = set()
         self.action_occured = ""
         self.video_name = ""
         self.output_name = ""
@@ -132,7 +132,7 @@ class Writer():
         self.output_video = cv2.VideoWriter(self.output_name, self.fourcc, self.fps, (1280, 720))
 
     def set_id(self, id):
-        self.id_inside_door_detected.append(id)
+        self.id_inside_door_detected.add(id)
 
 
     def start_video(self, id_tracked):
@@ -145,10 +145,18 @@ class Writer():
         self.set_id(id_tracked)
 
     def continue_opened_video(self):
-        self.max_counter_frames_indoor += 10
+        self.max_counter_frames_indoor += 15
+
+
+    def stop_recording(self, action_occured):
+        self.flag_stop_writing = True  # флаг об окончании записи
+        self.counter_frames_indoor = 0
+        self.action_occured = action_occured
+
 
     def set_fps(self, frames_per_second):
         self.fps = frames_per_second
+
 
     def continue_writing(self, im):
         if self.counter_frames_indoor != 0:
