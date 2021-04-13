@@ -1,17 +1,15 @@
-from deep_sort_pytorch.deep_sort import DeepSort
-from deep_sort_pytorch.utils.parser import get_config
-from time import gmtime
-from time import strftime
-import telebot
-
-from models import *  # set ONNX_EXPORT in models.py
-from tracking_modules import Counter, Writer
-from tracking_modules import find_centroid, Rectangle, rect_square, select_object
-from utils.datasets import *
-from utils.utils import *
 import socket
 import time
-from numba import njit
+from time import gmtime
+from time import strftime
+
+from deep_sort_pytorch.deep_sort import DeepSort
+from deep_sort_pytorch.utils.parser import get_config
+from models import *  # set ONNX_EXPORT in models.py
+from tracking_modules import Counter
+from tracking_modules import find_centroid, Rectangle, rect_square
+from utils.datasets import *
+from utils.utils import *
 
 palette = (2 ** 11 - 1, 2 ** 15 - 1, 2 ** 20 - 1)
 
