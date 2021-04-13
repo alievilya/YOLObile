@@ -6,10 +6,11 @@
 # def add(x, y):
 #     return x + y
 
-import socket
-import time
-import telebot
 import os
+import socket
+
+import telebot
+
 HOST = "localhost"
 PORT = 8084
 
@@ -23,7 +24,7 @@ def send_new_posts(videoname, actionname):
     video_path = os.path.join("output", videoname)
     video = open(video_path, 'rb')
     video_time = videoname[:-4].split()
-    text_caption="Человек {} в {}:{}:{}".format(actionname, video_time[0], video_time[1], video_time[2])
+    text_caption = "Человек {} в {}:{}:{}".format(actionname, video_time[0], video_time[1], video_time[2])
 
     # bot.send_message(chat_id=channel,text="Человек {} в {}:{}:{}".
     #                  format(actionname, video_time[0], video_time[1], video_time[2]))
@@ -32,6 +33,7 @@ def send_new_posts(videoname, actionname):
     # Спим секунду, чтобы избежать разного рода ошибок и ограничений (на всякий случай!)
     # time.sleep(1)
     return
+
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
     s.bind((HOST, PORT))
@@ -42,9 +44,10 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         while True:
             data = conn.recv(100)
             video_data = data.decode("utf-8").split(":")
+            conn.sendall(bytes('received: ' + video_data[0] + video_data[1], "utf-8"))
             print(video_data)
             send_new_posts(video_data[0], video_data[1])
-            conn.sendall(bytes(str(data),"utf-8"))
+
             # time.sleep(10)
 
 # add.delay(1,2)

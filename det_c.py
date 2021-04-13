@@ -1,80 +1,31 @@
+import socket
+
 from deep_sort_pytorch.deep_sort import DeepSort
 from deep_sort_pytorch.utils.parser import get_config
-from time import gmtime
-from time import strftime
-import socket
-import time
-from numba import njit
-
 from models import *  # set ONNX_EXPORT in models.py
 from tracking_modules import Counter, Writer
-from tracking_modules import find_centroid, Rectangle, rect_square, select_object
+from tracking_modules import find_centroid, Rectangle, rect_square, bbox_rel, draw_boxes, select_object
 from utils.datasets import *
 from utils.utils import *
 
 
-palette = (2 ** 11 - 1, 2 ** 15 - 1, 2 ** 20 - 1)
-
-
-def bbox_rel(*xyxy):
-    """" Calculates the relative bounding box from absolute pixel values. """
-    bbox_left = min([xyxy[0].item(), xyxy[2].item()])
-    bbox_top = min([xyxy[1].item(), xyxy[3].item()])
-    bbox_w = abs(xyxy[0].item() - xyxy[2].item())
-    bbox_h = abs(xyxy[1].item() - xyxy[3].item())
-    x_c = (bbox_left + bbox_w / 2)
-    y_c = (bbox_top + bbox_h / 2)
-    w = bbox_w
-    h = bbox_h
-    return x_c, y_c, w, h
-
-
-def compute_color_for_labels(label):
-    """
-    Simple function that adds fixed color depending on the class
-    """
-    color = [int((p * (label ** 2 - label + 1)) % 255) for p in palette]
-    return tuple(color)
-
-
-def draw_boxes(img, bbox, identities=None, offset=(0, 0)):
-    for i, box in enumerate(bbox):
-        x1, y1, x2, y2 = [int(i) for i in box]
-        x1 += offset[0]
-        x2 += offset[0]
-        y1 += offset[1]
-        y2 += offset[1]
-        # box text and bar
-        id = int(identities[i]) if identities is not None else 0
-        color = compute_color_for_labels(id)
-        label = '{}{:d}'.format("", id)
-        t_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_PLAIN, 2, 2)[0]
-        cv2.rectangle(img, (x1, y1), (x2, y2), color, 3)
-        cv2.rectangle(
-            img, (x1, y1), (x1 + t_size[0] + 3, y1 + t_size[1] + 4), color, -1)
-        cv2.putText(img, label, (x1, y1 +
-                                 t_size[1] + 4), cv2.FONT_HERSHEY_PLAIN, 2, [255, 255, 255], 2)
-    return img
-
-
 def detect(config):
-
     sent_videos = set()
     video_name = ""
 
     # door_array = select_object()
     # door_array = [475, 69, 557, 258]
     global flag, vid_writer, output_video, lost_ids, output_name
+    # initial parameters
     door_array = [475, 69, 557, 258]
     around_door_array = [433, 48, 572, 294]
     rect_door = Rectangle(door_array[0], door_array[1], door_array[2], door_array[3])
     rect_around_door = Rectangle(around_door_array[0], around_door_array[1], around_door_array[2], around_door_array[3])
+    # socket
     HOST = "localhost"
     PORT = 8084
-
-    counter = Counter(counter_in=0, counter_out=0, track_id=0)
+    # camera info
     save_img = True
-
     imgsz = (416, 416) if ONNX_EXPORT else config[
         "img_size"]  # (320, 192) or (416, 256) or (608, 352) for (height, width)
     out, source, weights, half, view_img = config["output"], config["source"], config["weights"], \
@@ -83,13 +34,16 @@ def detect(config):
     # initialize deepsort
     cfg = get_config()
     cfg.merge_from_file(config["config_deepsort"])
+    # initial objects of classes
+    counter = Counter(counter_in=0, counter_out=0, track_id=0)
+    VideoHandler = Writer()
     deepsort = DeepSort(cfg.DEEPSORT.REID_CKPT,
                         max_dist=cfg.DEEPSORT.MAX_DIST, min_confidence=cfg.DEEPSORT.MIN_CONFIDENCE,
                         nms_max_overlap=cfg.DEEPSORT.NMS_MAX_OVERLAP, max_iou_distance=cfg.DEEPSORT.MAX_IOU_DISTANCE,
                         max_age=cfg.DEEPSORT.MAX_AGE, n_init=cfg.DEEPSORT.N_INIT, nn_budget=cfg.DEEPSORT.NN_BUDGET,
                         use_cuda=True)
 
-    # Initialize
+    # Initialize device, weights etc.
     device = torch_utils.select_device(device='cpu' if ONNX_EXPORT else config["device"])
     if os.path.exists(out):
         shutil.rmtree(out)  # delete output folder
@@ -104,25 +58,8 @@ def detect(config):
         model.load_state_dict(torch.load(weights, map_location=device)['model'], strict=False)
     else:  # darknet format
         load_darknet_weights(model, weights)
-
     # Eval mode
     model.to(device).eval()
-
-    # Export mode
-    # if ONNX_EXPORT:
-    #     # model.fuse()
-    #     img = torch.zeros((1, 3) + imgsz)  # (1, 3, 320, 192)
-    #     f = config["weights"].replace(config["weights"].split('.')[-1], 'onnx')  # *.onnx filename
-    #     torch.onnx.export(model, img, f, verbose=False, opset_version=9,
-    #                       input_names=['images'], output_names=['classes', 'boxes'])
-    #
-    #     # Validate exported model
-    #     import onnx
-    #     model = onnx.load(f)  # Load the ONNX model
-    #     onnx.checker.check_model(model)  # Check that the IR is well formed
-    #     print(onnx.helper.printable_graph(model.graph))  # Print a human readable representation of the graph
-    #     return
-
     # Half precision
     half = half and device.type != 'cpu'  # half precision only supported on CUDA
     if half:
@@ -149,18 +86,13 @@ def detect(config):
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((HOST, PORT))
-        VideoHandler = Writer()
         for frame_idx, (path, img, im0s, vid_cap) in enumerate(dataset):
-            # counter.cur_bbox_initialized()
-            # flag_stop_writing = False
-            inter_square = 0
             ratio_detection = 0
             img = torch.from_numpy(img).to(device)
             img = img.half() if half else img.float()  # uint8 to fp16/32
             img /= 255.0  # 0 - 255 to 0.0 - 1.0
             if img.ndimension() == 3:
                 img = img.unsqueeze(0)
-
             # Inference
             t1 = torch_utils.time_synchronized()
             pred = model(img, augment=config["augment"])[0]
@@ -179,8 +111,9 @@ def detect(config):
                 else:
                     p, s, im0 = path, '', im0s
 
-                # door_array = select_object(im0)
-                # print(door_array)
+                if len(door_array) != 4 or len(around_door_array) != 4:
+                    door_array = select_object(im0)
+                    print(door_array)
 
                 save_path = str(Path(out) / Path(p).name)
                 s += '%gx%g ' % img.shape[2:]  # print string
@@ -242,18 +175,13 @@ def detect(config):
                                     ratio_detection = inter_square_detection / cur_square_detection
                                 except ZeroDivisionError:
                                     ratio_detection = 0
+                                #  чел первый раз в контуре двери
                             if ratio_detection > 0 and VideoHandler.counter_frames_indoor == 0:
                                 #     флаг о начале записи
-                                VideoHandler.flag_personindoor = True
-                                VideoHandler.counter_frames_indoor = 1
-                                hour_greenvich = strftime("%H", gmtime())
-                                hour_moscow = str(int(hour_greenvich) + 3)
-                                video_name = hour_moscow + strftime(" %M %S", gmtime()) + '.mp4'
-                                VideoHandler.set_video(video_name)
-                                VideoHandler.set_id(id_tracked)
-                                # output_name = 'output/{}'.format(video_name)
-                                # output_video = cv2.VideoWriter(output_name, fourcc, 5, (1280, 720))
-                                #  чел в контуре двери
+                                VideoHandler.start_video(id_tracked)
+
+                            elif ratio_detection > 0 and id_tracked not in VideoHandler.id_inside_door_detected:
+                                VideoHandler.continue_opened_video()
 
                             if id_tracked not in counter.people_init or counter.people_init[id_tracked] == 0:
                                 counter.obj_initialized(id_tracked)
@@ -264,20 +192,15 @@ def detect(config):
                                     intersection_square = rect_square(*intersection)
                                     head_square = rect_square(*rect_head)
                                     rat = intersection_square / head_square
-                                    #     was initialized in door, probably going in
                                     if rat >= 0.5:
+                                        #     was initialized in door, probably going in
                                         counter.people_init[id_tracked] = 2
-                                    #     initialized in the office, mb going out
                                     elif rat < 0.5:
+                                        #     initialized in the office, mb going out
                                         counter.people_init[id_tracked] = 1
                                     counter.frame_age_counter[id_tracked] = 0
-                                    #     initialized between the exit and bus, not obvious state
-                                    # elif rat > 0.4 and rat < 0.6:
-                                    #     counter.people_init[id_tracked] = 3
-                                    #     counter.rat_init[id_tracked] = rat
-
-                                # res is None, means that object is not in door contour
                                 else:
+                                    # res is None, means that object is not in door contour
                                     counter.people_init[id_tracked] = 1
 
                                 counter.people_bbox[id_tracked] = bbox_tracked
@@ -288,11 +211,12 @@ def detect(config):
                 # Print time (inference + NMS)
                 print('%sDone. (%.3fs)' % (s, t2 - t1))
                 # Stream results
-
+            vals_to_del = []
             for val in counter.people_init.keys():
                 # check bbox also
                 inter = 0
                 cur_square = 0
+                val_to_del = None
                 ratio = 0
                 cur_c = find_centroid(counter.cur_bbox[val])
                 init_c = find_centroid(counter.people_bbox[val])
@@ -320,8 +244,9 @@ def detect(config):
                         counter.people_init[val] = -1
                         VideoHandler.flag_stop_writing = True  # флаг об окончании записи
                         VideoHandler.counter_frames_indoor = 0
-                        VideoHandler.id_last = val
+                        # VideoHandler.id_last = val
                         VideoHandler.action_occured = "зашёл"
+                        vals_to_del.append(val)
                         # del counter.people_init[val]
 
                     elif vector_person[1] < -50 and counter.people_init[val] == 1 \
@@ -330,22 +255,16 @@ def detect(config):
                         counter.people_init[val] = -1
                         VideoHandler.flag_stop_writing = True  # флаг об окончании записи
                         VideoHandler.counter_frames_indoor = 0
-                        VideoHandler.id_last = val
+                        # VideoHandler.id_last = val
                         VideoHandler.action_occured = "вышел"
+                        vals_to_del.append(val)
                         # del counter.people_init[val]
-                    # elif vector_person[1] < -50 and counter.people_init[val] == 3 \
-                    #         and ratio > counter.rat_init[val] and ratio >= 0.6:
-                    #     counter.get_out()
-                    #     flag_stop_writing = True
-                    #     counter_frames_indoor = 0
-                    # elif vector_person[1] > 50 and counter.people_init[val] == 3 \
-                    #         and ratio < counter.rat_init[val] and ratio < 0.6:
-                    #     counter.get_in()
-                    #     flag_stop_writing = True
-                    #
-                    #     counter_frames_indoor = 0
+
                     lost_ids.remove(val)
-                elif counter.frame_age_counter.get(val, 0 ) >= 35 and counter.people_init[val] != -1:
+
+
+                elif counter.frame_age_counter.get(val, 0) >= counter.max_frame_age_counter \
+                        and counter.people_init[val] == 2:
                     if inter:
                         inter_square = rect_square(*inter)
                         cur_square = rect_square(*rect_cur)
@@ -354,31 +273,24 @@ def detect(config):
                         except ZeroDivisionError:
                             ratio = 0
 
-                    if vector_person[1] > 50 and counter.people_init[val] == 2 \
-                            and ratio < 0.5:
+                    if vector_person[1] > 50 and ratio < 0.5:
                         counter.get_in()
                         counter.people_init[val] = -1
                         VideoHandler.flag_stop_writing = True  # флаг об окончании записи
                         VideoHandler.counter_frames_indoor = 0
-                        VideoHandler.id_last = val
+                        # VideoHandler.id_last = val
                         VideoHandler.action_occured = "зашёл (не потерян)"
+                        vals_to_del.append(val)
 
-                    # elif vector_person[1] < -50 and counter.people_init[val] == 1 \
-                    #         and ratio >= 0.5:
-                    #     counter.get_out()
-                    #     counter.people_init[val] = -1
-                    #     VideoHandler.flag_stop_writing = True  # флаг об окончании записи
-                    #     VideoHandler.counter_frames_indoor = 0
-                    #     VideoHandler.id_last = val
-                    #     VideoHandler.action_occured = "вышел (был внутри)"
                     counter.age_counter[val] = 0
-                        # del counter.people_init[val]
-
-                                            # del counter.people_init[val]
-
+                    # del counter.people_init[val]
 
                 # del counter.cur_bbox[val]
+
                 counter.clear_lost_ids()
+
+            for valtodel in vals_to_del:
+                counter.delete_person_data(track_id=valtodel)
 
             ins, outs = counter.show_counter()
             cv2.rectangle(im0, (0, 0), (250, 50),
@@ -386,24 +298,19 @@ def detect(config):
             cv2.putText(im0, "in: {}, out: {} ".format(ins, outs), (10, 35), 0,
                         1e-3 * im0.shape[0], (255, 255, 255), 3)
 
-
-            # if flag_stop_writing:
-            #     output_video.write(im0)
-            #     output_video.release()
-            #     if video_name[-3:] == "mp4" and video_name not in sent_videos and os.path.exists(output_name):
             print('flag_personindoor: ', VideoHandler.flag_personindoor)
             print('flag_stop_writing: ', VideoHandler.flag_stop_writing)
             print('counter_frames_indoor: ', VideoHandler.counter_frames_indoor)
 
             if VideoHandler.stop_writing(im0):
-                    # send_new_posts(video_name, action_occured)
+                # send_new_posts(video_name, action_occured)
                 sock.sendall(bytes(VideoHandler.video_name + ":" + VideoHandler.action_occured, "utf-8"))
                 data = sock.recv(100)
                 print('Received', repr(data.decode("utf-8")))
                 sent_videos.add(video_name)
                 VideoHandler = Writer()
 
-            else: # TODO CHECK if person inside and still not counted
+            else:  # TODO CHECK if person inside and still not counted
 
                 VideoHandler.continue_writing(im0)
                 # if counter_frames_indoor != 0:
@@ -419,8 +326,6 @@ def detect(config):
                 #         if os.path.exists(output_name):
                 #             os.remove(output_name)
 
-
-
             if view_img:
                 cv2.imshow(p, im0)
                 if cv2.waitKey(1) == ord('q'):  # q to quit
@@ -429,8 +334,12 @@ def detect(config):
                 # Save results (image with detections)
 
             # vid_writer.write(im0)
+        delta_time = (time.time() - t0)
+        print('Done. (%.3fs)' % delta_time)
+        fps = int(1 / delta_time)
+        VideoHandler.set_fps(fps)
+        counter.set_fps(fps)
 
-        print('Done. (%.3fs)' % (time.time() - t0))
     # vid_writer.release()
 
 
