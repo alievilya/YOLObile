@@ -181,6 +181,7 @@ def detect(config):
                                 VideoHandler.start_video(id_tracked)
 
                             elif ratio_detection > 0 and id_tracked not in VideoHandler.id_inside_door_detected:
+                                VideoHandler.set_id(id_tracked)
                                 VideoHandler.continue_opened_video()
 
                             if id_tracked not in counter.people_init or counter.people_init[id_tracked] == 0:
@@ -216,7 +217,6 @@ def detect(config):
                 # check bbox also
                 inter = 0
                 cur_square = 0
-                val_to_del = None
                 ratio = 0
                 cur_c = find_centroid(counter.cur_bbox[val])
                 init_c = find_centroid(counter.people_bbox[val])
@@ -242,23 +242,16 @@ def detect(config):
                             and ratio < 0.5:
                         counter.get_in()
                         counter.people_init[val] = -1
-                        VideoHandler.flag_stop_writing = True  # флаг об окончании записи
-                        VideoHandler.counter_frames_indoor = 0
-                        # VideoHandler.id_last = val
-                        VideoHandler.action_occured = "зашёл"
+                        VideoHandler.stop_recording(action_occured="зашёл")
+
                         vals_to_del.append(val)
-                        # del counter.people_init[val]
 
                     elif vector_person[1] < -50 and counter.people_init[val] == 1 \
                             and ratio >= 0.5:
                         counter.get_out()
                         counter.people_init[val] = -1
-                        VideoHandler.flag_stop_writing = True  # флаг об окончании записи
-                        VideoHandler.counter_frames_indoor = 0
-                        # VideoHandler.id_last = val
-                        VideoHandler.action_occured = "вышел"
+                        VideoHandler.stop_recording(action_occured="вышел")
                         vals_to_del.append(val)
-                        # del counter.people_init[val]
 
                     lost_ids.remove(val)
 
@@ -276,16 +269,9 @@ def detect(config):
                     if vector_person[1] > 50 and ratio < 0.5:
                         counter.get_in()
                         counter.people_init[val] = -1
-                        VideoHandler.flag_stop_writing = True  # флаг об окончании записи
-                        VideoHandler.counter_frames_indoor = 0
-                        # VideoHandler.id_last = val
-                        VideoHandler.action_occured = "зашёл (не потерян)"
+                        VideoHandler.stop_recording(action_occured="зашёл (не потерян)")
                         vals_to_del.append(val)
-
                     counter.age_counter[val] = 0
-                    # del counter.people_init[val]
-
-                # del counter.cur_bbox[val]
 
                 counter.clear_lost_ids()
 
@@ -310,30 +296,14 @@ def detect(config):
                 sent_videos.add(video_name)
                 VideoHandler = Writer()
 
-            else:  # TODO CHECK if person inside and still not counted
-
+            else:
                 VideoHandler.continue_writing(im0)
-                # if counter_frames_indoor != 0:
-                #     counter_frames_indoor += 1
-                #     output_video.write(im0)
-                # if counter_frames_indoor == 50:
-                #
-                #     VideoHandler.flag_stop_writing = False
-                #     VideoHandler.flag_personindoor = False
-                #     VideoHandler.counter_frames_indoor = 0
-                #     if output_video.isOpened():
-                #         output_video.release()
-                #         if os.path.exists(output_name):
-                #             os.remove(output_name)
 
             if view_img:
                 cv2.imshow(p, im0)
                 if cv2.waitKey(1) == ord('q'):  # q to quit
                     raise StopIteration
 
-                # Save results (image with detections)
-
-            # vid_writer.write(im0)
         delta_time = (time.time() - t0)
         print('Done. (%.3fs)' % delta_time)
         fps = int(1 / delta_time)
