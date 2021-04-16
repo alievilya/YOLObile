@@ -15,10 +15,10 @@ def detect(config):
 
     # door_array = select_object()
     # door_array = [475, 69, 557, 258]
-    global flag, vid_writer, output_video, lost_ids, output_name
+    global flag, vid_writer, lost_ids
     # initial parameters
-    door_array = [475, 69, 557, 258]
-    around_door_array = [433, 48, 572, 294]
+    door_array = [528, 21, 581, 315]
+    around_door_array = [503, 20, 619, 346]
     rect_door = Rectangle(door_array[0], door_array[1], door_array[2], door_array[3])
     rect_around_door = Rectangle(around_door_array[0], around_door_array[1], around_door_array[2], around_door_array[3])
     # socket
@@ -79,15 +79,14 @@ def detect(config):
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in range(len(names))]
 
     # Run inference
-
+    t0 = time.time()
     img = torch.zeros((1, 3, imgsz, imgsz), device=device)  # init img
     _ = model(img.half() if half else img.float()) if device.type != 'cpu' else None  # run once
     # flag_personindoor = False
-    fps_measurements = []
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((HOST, PORT))
         for frame_idx, (path, img, im0s, vid_cap) in enumerate(dataset):
-            t0 = time.time()
             ratio_detection = 0
             img = torch.from_numpy(img).to(device)
             img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -148,9 +147,7 @@ def detect(config):
 
                     detections = torch.Tensor(bbox_xywh)
                     confidences = torch.Tensor(confs)
-                    cv2.rectangle(im0, (int(door_array[0]), int(door_array[1])),
-                                  (int(door_array[2]), int(door_array[3])),
-                                  (23, 158, 21), 3)
+
 
                     # Pass detections to deepsort
                     if len(detections) == 0:
@@ -194,11 +191,11 @@ def detect(config):
                                     intersection_square = rect_square(*intersection)
                                     head_square = rect_square(*rect_head)
                                     rat = intersection_square / head_square
-                                    if rat >= 0.5:
-                                        #     was initialized in door, probably going in
+                                    if rat >= 0.2:
+                                        #     was initialized in door, probably going out of office
                                         counter.people_init[id_tracked] = 2
-                                    elif rat < 0.5:
-                                        #     initialized in the office, mb going out
+                                    elif rat < 0.2:
+                                        #     initialized in the corridor, mb going in
                                         counter.people_init[id_tracked] = 1
                                     counter.frame_age_counter[id_tracked] = 0
                                 else:
@@ -239,19 +236,19 @@ def detect(config):
                             ratio = 0
                     # if vector_person < 0 then current coord is less than initialized, it means that man is going
                     # in the exit direction
-                    if vector_person[1] > 50 and counter.people_init[val] == 2 \
-                            and ratio < 0.5:
-                        counter.get_in()
+                    if counter.people_init[val] == 2 \
+                            and ratio < 0.3:  # vector_person[1] > 50 and
+                        counter.get_out()
                         counter.people_init[val] = -1
-                        VideoHandler.stop_recording(action_occured="зашёл")
+                        VideoHandler.stop_recording(action_occured="вышел из кабинета")
 
                         vals_to_del.append(val)
 
-                    elif vector_person[1] < -50 and counter.people_init[val] == 1 \
-                            and ratio >= 0.5:
-                        counter.get_out()
+                    elif counter.people_init[val] == 1 \
+                            and ratio >= 0.5:  # vector_person[1] < -50 and
+                        counter.get_in()
                         counter.people_init[val] = -1
-                        VideoHandler.stop_recording(action_occured="вышел")
+                        VideoHandler.stop_recording(action_occured="зашел внутрь")
                         vals_to_del.append(val)
 
                     lost_ids.remove(val)
@@ -267,10 +264,10 @@ def detect(config):
                         except ZeroDivisionError:
                             ratio = 0
 
-                    if vector_person[1] > 50 and ratio < 0.5:
+                    if ratio < 0.3:  #vector_person[1] > 50 and
                         counter.get_in()
                         counter.people_init[val] = -1
-                        VideoHandler.stop_recording(action_occured="зашёл (не потерян)")
+                        VideoHandler.stop_recording(action_occured="вышел")
                         vals_to_del.append(val)
                     counter.age_counter[val] = 0
 
@@ -282,6 +279,11 @@ def detect(config):
             ins, outs = counter.show_counter()
             cv2.rectangle(im0, (0, 0), (250, 50),
                           (0, 0, 0), -1, 8)
+
+            cv2.rectangle(im0, (int(door_array[0]), int(door_array[1])),
+                          (int(door_array[2]), int(door_array[3])),
+                          (23, 158, 21), 3)
+
             cv2.putText(im0, "in: {}, out: {} ".format(ins, outs), (10, 35), 0,
                         1e-3 * im0.shape[0], (255, 255, 255), 3)
 
@@ -305,16 +307,12 @@ def detect(config):
                 if cv2.waitKey(1) == ord('q'):  # q to quit
                     raise StopIteration
 
-            delta_time = (time.time() - t0)
-            frame_fps = int(1 / delta_time)
-            if len(fps_measurements) == 20:
-                fps = np.mean(fps_measurements)
-                VideoHandler.set_fps(fps)
-                counter.set_fps(fps)
-            elif len(fps_measurements) < 20:
-                fps_measurements = np.append(fps_measurements, frame_fps)
-            else:
-                continue
+        delta_time = (time.time() - t0)
+        print('Done. (%.3fs)' % delta_time)
+        fps = int(1 / delta_time)
+        VideoHandler.set_fps(fps)
+        counter.set_fps(fps)
+
     # vid_writer.release()
 
 

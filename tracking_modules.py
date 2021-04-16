@@ -28,7 +28,7 @@ def get_truth(video_name):
 
 class Counter:
     def __init__(self, counter_in, counter_out, track_id):
-        self.fps = 5
+        self.fps = 20
         self.max_frame_age_counter = self.fps * 6
         self.max_age_counter = self.fps * 4
 
@@ -53,7 +53,6 @@ class Counter:
         del self.people_init[track_id]
         del self.people_bbox[track_id]
         del self.frame_age_counter[track_id]
-
 
     def cur_bbox_initialized(self):
         self.cur_bbox = OrderedDict()
@@ -113,7 +112,7 @@ class Counter:
 
 class Writer():
     def __init__(self):
-        self.fps = 5
+        self.fps = 20
         self.max_counter_frames_indoor = self.fps * 8
         self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
         self.counter_frames_indoor = 0
@@ -122,41 +121,36 @@ class Writer():
         self.id_inside_door_detected = set()
         self.action_occured = ""
         self.video_name = ""
+        self.output_video = 0
         self.output_name = ""
 
-
-    def set_video(self, video_name):
+    def set_video(self):
         self.max_counter_frames_indoor = self.fps * 10
-        self.video_name = video_name
+        hour_greenvich = strftime("%H", gmtime())
+        hour_moscow = str(int(hour_greenvich) + 3)
+        self.video_name = hour_moscow + strftime(" %M %S", gmtime()) + '.mp4'
         self.output_name = "output/" + self.video_name
         self.output_video = cv2.VideoWriter(self.output_name, self.fourcc, self.fps, (1280, 720))
 
     def set_id(self, id):
         self.id_inside_door_detected.add(id)
 
-
     def start_video(self, id_tracked):
         self.flag_personindoor = True
         self.counter_frames_indoor = 1
-        hour_greenvich = strftime("%H", gmtime())
-        hour_moscow = str(int(hour_greenvich) + 3)
-        video_name = hour_moscow + strftime(" %M %S", gmtime()) + '.mp4'
-        self.set_video(video_name)
+        self.set_video()
         self.set_id(id_tracked)
 
     def continue_opened_video(self):
         self.max_counter_frames_indoor += 15
-
 
     def stop_recording(self, action_occured):
         self.flag_stop_writing = True  # флаг об окончании записи
         self.counter_frames_indoor = 0
         self.action_occured = action_occured
 
-
     def set_fps(self, frames_per_second):
         self.fps = frames_per_second
-
 
     def continue_writing(self, im):
         if self.counter_frames_indoor != 0:
@@ -176,7 +170,7 @@ class Writer():
                     os.remove(self.output_name)
 
     def stop_writing(self, im):
-        if self.flag_stop_writing:
+        if self.flag_stop_writing and self.flag_personindoor:
             self.output_video.write(im)
             if self.video_name[-3:] == "mp4" and self.video_name and os.path.exists(self.output_name):
                 self.output_video.release()
