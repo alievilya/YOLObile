@@ -34,7 +34,7 @@ if __name__ == '__main__':
     print("Check Dense model: ")
     model = Darknet(cfg = 'cfg/csdarknet53s-panet-spp.cfg',img_size=(320,320))
     n_po, macso = torch_utils.model_info(model, verbose=False)
-
+    macso = 0
     print("Check 8x prunned model: ")
     state_dict = torch.load('weights/best8x-514.pt')
     model.load_state_dict(state_dict["model"])

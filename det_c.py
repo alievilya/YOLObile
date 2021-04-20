@@ -17,8 +17,12 @@ def detect(config):
     # door_array = [475, 69, 557, 258]
     global flag, vid_writer, lost_ids
     # initial parameters
-    door_array = [528, 21, 581, 315]
+    # door_array = [528, 21, 581, 315]
+    # door_array = [596, 76, 650, 295]  #  18 stream
+    door_array = [609, 69, 659, 309]
+    # around_door_array = [572, 79, 694, 306]  #
     around_door_array = [503, 20, 619, 346]
+    #
     rect_door = Rectangle(door_array[0], door_array[1], door_array[2], door_array[3])
     rect_around_door = Rectangle(around_door_array[0], around_door_array[1], around_door_array[2], around_door_array[3])
     # socket
@@ -78,15 +82,13 @@ def detect(config):
     names = load_classes(config["names"])
     colors = [[random.randint(0, 255) for _ in range(3)] for _ in range(len(names))]
 
-    # Run inference
-    t0 = time.time()
     img = torch.zeros((1, 3, imgsz, imgsz), device=device)  # init img
     _ = model(img.half() if half else img.float()) if device.type != 'cpu' else None  # run once
-    # flag_personindoor = False
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((HOST, PORT))
         for frame_idx, (path, img, im0s, vid_cap) in enumerate(dataset):
+            t0_ds = time.time()
             ratio_detection = 0
             img = torch.from_numpy(img).to(device)
             img = img.half() if half else img.float()  # uint8 to fp16/32
@@ -96,7 +98,7 @@ def detect(config):
             # Inference
             t1 = torch_utils.time_synchronized()
             pred = model(img, augment=config["augment"])[0]
-            t2 = torch_utils.time_synchronized()
+
             # to float
             if half:
                 pred = pred.float()
@@ -105,6 +107,7 @@ def detect(config):
             pred = non_max_suppression(pred, config["conf_thres"], config["iou_thres"],
                                        multi_label=False, classes=classes, agnostic=config["agnostic_nms"])
             # Process detections
+            lost_ids = counter.return_lost_ids()
             for i, det in enumerate(pred):  # detections for image i
                 if webcam:  # batch_size >= 1
                     p, s, im0 = path[i], '%g: ' % i, im0s[i].copy()
@@ -118,7 +121,7 @@ def detect(config):
                 save_path = str(Path(out) / Path(p).name)
                 s += '%gx%g ' % img.shape[2:]  # print string
                 gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  #  normalization gain whwh
-                lost_ids = counter.return_lost_ids()
+                # lost_ids = counter.return_lost_ids()
 
                 if det is not None and len(det):
                     # Rescale boxes from imgsz to im0 size
@@ -148,7 +151,6 @@ def detect(config):
                     detections = torch.Tensor(bbox_xywh)
                     confidences = torch.Tensor(confs)
 
-
                     # Pass detections to deepsort
                     if len(detections) == 0:
                         continue
@@ -174,13 +176,15 @@ def detect(config):
                                 except ZeroDivisionError:
                                     ratio_detection = 0
                                 #  чел первый раз в контуре двери
-                            if ratio_detection > 0 and VideoHandler.counter_frames_indoor == 0:
+                            if ratio_detection > 0.2 and VideoHandler.counter_frames_indoor == 0:
                                 #     флаг о начале записи
                                 VideoHandler.start_video(id_tracked)
 
-                            elif ratio_detection > 0 and id_tracked not in VideoHandler.id_inside_door_detected:
+                            elif ratio_detection > 0.2 and id_tracked not in VideoHandler.id_inside_door_detected:
                                 VideoHandler.set_id(id_tracked)
-                                VideoHandler.continue_opened_video()
+                                VideoHandler.continue_opened_video(seconds=3)
+                            # elif ratio_detection > 0.3 and counter.people_init.get(id_tracked) == 1:
+                            #     VideoHandler.continue_opened_video(seconds=2)
 
                             if id_tracked not in counter.people_init or counter.people_init[id_tracked] == 0:
                                 counter.obj_initialized(id_tracked)
@@ -191,10 +195,10 @@ def detect(config):
                                     intersection_square = rect_square(*intersection)
                                     head_square = rect_square(*rect_head)
                                     rat = intersection_square / head_square
-                                    if rat >= 0.2:
+                                    if rat >= 0.4:
                                         #     was initialized in door, probably going out of office
                                         counter.people_init[id_tracked] = 2
-                                    elif rat < 0.2:
+                                    elif rat < 0.4:
                                         #     initialized in the corridor, mb going in
                                         counter.people_init[id_tracked] = 1
                                     counter.frame_age_counter[id_tracked] = 0
@@ -208,7 +212,8 @@ def detect(config):
                 else:
                     deepsort.increment_ages()
                 # Print time (inference + NMS)
-                print('%sDone. (%.3fs)' % (s, t2 - t1))
+                t2 = torch_utils.time_synchronized()
+
                 # Stream results
             vals_to_del = []
             for val in counter.people_init.keys():
@@ -232,12 +237,14 @@ def detect(config):
                         cur_square = rect_square(*rect_cur)
                         try:
                             ratio = inter_square / cur_square
+
                         except ZeroDivisionError:
                             ratio = 0
                     # if vector_person < 0 then current coord is less than initialized, it means that man is going
                     # in the exit direction
                     if counter.people_init[val] == 2 \
                             and ratio < 0.3:  # vector_person[1] > 50 and
+                        print('ratio out: ', ratio)
                         counter.get_out()
                         counter.people_init[val] = -1
                         VideoHandler.stop_recording(action_occured="вышел из кабинета")
@@ -245,7 +252,8 @@ def detect(config):
                         vals_to_del.append(val)
 
                     elif counter.people_init[val] == 1 \
-                            and ratio >= 0.5:  # vector_person[1] < -50 and
+                            and ratio >= 0.4:  # vector_person[1] < -50 and
+                        print('ratio in: ', ratio)
                         counter.get_in()
                         counter.people_init[val] = -1
                         VideoHandler.stop_recording(action_occured="зашел внутрь")
@@ -253,7 +261,7 @@ def detect(config):
 
                     lost_ids.remove(val)
 
-
+                # TODO maybe delete this condition
                 elif counter.frame_age_counter.get(val, 0) >= counter.max_frame_age_counter \
                         and counter.people_init[val] == 2:
                     if inter:
@@ -264,8 +272,9 @@ def detect(config):
                         except ZeroDivisionError:
                             ratio = 0
 
-                    if ratio < 0.3:  #vector_person[1] > 50 and
-                        counter.get_in()
+                    if ratio < 0.2:  # vector_person[1] > 50 and
+                        counter.get_out()
+                        print('ratio out max frames: ', ratio)
                         counter.people_init[val] = -1
                         VideoHandler.stop_recording(action_occured="вышел")
                         vals_to_del.append(val)
@@ -287,7 +296,7 @@ def detect(config):
             cv2.putText(im0, "in: {}, out: {} ".format(ins, outs), (10, 35), 0,
                         1e-3 * im0.shape[0], (255, 255, 255), 3)
 
-            print('flag_personindoor: ', VideoHandler.flag_personindoor)
+            print('\nflag_personindoor: ', VideoHandler.flag_personindoor)
             print('flag_stop_writing: ', VideoHandler.flag_stop_writing)
             print('counter_frames_indoor: ', VideoHandler.counter_frames_indoor)
 
@@ -307,11 +316,16 @@ def detect(config):
                 if cv2.waitKey(1) == ord('q'):  # q to quit
                     raise StopIteration
 
-        delta_time = (time.time() - t0)
-        print('Done. (%.3fs)' % delta_time)
-        fps = int(1 / delta_time)
-        VideoHandler.set_fps(fps)
-        counter.set_fps(fps)
+            delta_time = (torch_utils.time_synchronized() - t1)
+            # t2_ds = time.time()
+            # print('%s Torch:. (%.3fs)' % (s, t2 - t1))
+            # print('Full pipe. (%.3fs)' % (t2_ds - t0_ds))
+
+            fps = round(1 / delta_time)
+            # fps = 20
+            print('fps set: ', fps)
+            VideoHandler.set_fps(fps)
+            counter.set_fps(fps)
 
     # vid_writer.release()
 

@@ -29,7 +29,7 @@ def get_truth(video_name):
 class Counter:
     def __init__(self, counter_in, counter_out, track_id):
         self.fps = 20
-        self.max_frame_age_counter = self.fps * 6
+        self.max_frame_age_counter = self.fps * 60  #  TODO maybe delete this condition
         self.max_age_counter = self.fps * 4
 
         self.people_init = OrderedDict()
@@ -112,7 +112,7 @@ class Counter:
 
 class Writer():
     def __init__(self):
-        self.fps = 20
+        self.fps = 3
         self.max_counter_frames_indoor = self.fps * 8
         self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
         self.counter_frames_indoor = 0
@@ -121,8 +121,8 @@ class Writer():
         self.id_inside_door_detected = set()
         self.action_occured = ""
         self.video_name = ""
-        self.output_video = 0
         self.output_name = ""
+        self.noone_in_door = True
 
     def set_video(self):
         self.max_counter_frames_indoor = self.fps * 10
@@ -141,8 +141,8 @@ class Writer():
         self.set_video()
         self.set_id(id_tracked)
 
-    def continue_opened_video(self):
-        self.max_counter_frames_indoor += 15
+    def continue_opened_video(self, seconds=1):
+        self.max_counter_frames_indoor += self.fps*seconds
 
     def stop_recording(self, action_occured):
         self.flag_stop_writing = True  # флаг об окончании записи
