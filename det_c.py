@@ -21,7 +21,7 @@ def detect(config):
     # door_array = [596, 76, 650, 295]  #  18 stream
     door_array = [609, 69, 659, 309]
     # around_door_array = [572, 79, 694, 306]  #
-    around_door_array = [503, 20, 619, 346]
+    around_door_array = [470, 34, 722, 391]
     #
     rect_door = Rectangle(door_array[0], door_array[1], door_array[2], door_array[3])
     rect_around_door = Rectangle(around_door_array[0], around_door_array[1], around_door_array[2], around_door_array[3])
