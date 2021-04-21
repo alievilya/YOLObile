@@ -19,6 +19,8 @@ def detect(config):
     # initial parameters
     door_array = [475, 69, 557, 258]
     around_door_array = [433, 48, 572, 294]
+    door_array = [528, 21, 581, 315]
+    around_door_array = [503, 20, 619, 346]
     rect_door = Rectangle(door_array[0], door_array[1], door_array[2], door_array[3])
     rect_around_door = Rectangle(around_door_array[0], around_door_array[1], around_door_array[2], around_door_array[3])
     # socket
@@ -151,6 +153,7 @@ def detect(config):
                                   (int(door_array[2]), int(door_array[3])),
                                   (23, 158, 21), 3)
 
+
                     # Pass detections to deepsort
                     if len(detections) == 0:
                         continue
@@ -198,6 +201,11 @@ def detect(config):
                                         counter.people_init[id_tracked] = 2
                                     elif rat < 0.5:
                                         #     initialized in the office, mb going out
+                                    if rat >= 0.2:
+                                        #     was initialized in door, probably going out of office
+                                        counter.people_init[id_tracked] = 2
+                                    elif rat < 0.2:
+                                        #     initialized in the corridor, mb going in
                                         counter.people_init[id_tracked] = 1
                                     counter.frame_age_counter[id_tracked] = 0
                                 else:
@@ -241,6 +249,9 @@ def detect(config):
                     if vector_person[1] > 50 and counter.people_init[val] == 2 \
                             and ratio < 0.5:
                         counter.get_in()
+                    if counter.people_init[val] == 2 \
+                            and ratio < 0.3:  # vector_person[1] > 50 and
+                        counter.get_out()
                         counter.people_init[val] = -1
                         VideoHandler.stop_recording(action_occured="зашёл")
 
@@ -249,6 +260,9 @@ def detect(config):
                     elif vector_person[1] < -50 and counter.people_init[val] == 1 \
                             and ratio >= 0.5:
                         counter.get_out()
+                    elif counter.people_init[val] == 1 \
+                            and ratio >= 0.5:  # vector_person[1] < -50 and
+                        counter.get_in()
                         counter.people_init[val] = -1
                         VideoHandler.stop_recording(action_occured="вышел")
                         vals_to_del.append(val)
@@ -267,6 +281,8 @@ def detect(config):
                             ratio = 0
 
                     if vector_person[1] > 50 and ratio < 0.5:
+                    if ratio < 0.3:  #vector_person[1] > 50 and
+
                         counter.get_in()
                         counter.people_init[val] = -1
                         VideoHandler.stop_recording(action_occured="зашёл (не потерян)")

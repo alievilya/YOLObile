@@ -1,11 +1,3 @@
-# from celery import Celery
-#
-# app = Celery('hello_world', broker='pyamqp://guest@localhost:1234//')
-#
-# @app.task
-# def add(x, y):
-#     return x + y
-
 import os
 import socket
 
