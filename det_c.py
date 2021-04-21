@@ -20,11 +20,12 @@ def detect(config):
     # initial parameters
     # door_array = [528, 21, 581, 315]
     # door_array = [596, 76, 650, 295]  #  18 stream
-    door_array = [609, 69, 659, 309]
+    door_array = [611, 70, 663, 310]
     # around_door_array = [572, 79, 694, 306]  #
     around_door_array = [470, 34, 722, 391]
     #
     rect_door = Rectangle(door_array[0], door_array[1], door_array[2], door_array[3])
+    door_c = find_centroid(door_array)
     rect_around_door = Rectangle(around_door_array[0], around_door_array[1], around_door_array[2], around_door_array[3])
     # socket
     HOST = "localhost"
@@ -182,10 +183,10 @@ def detect(config):
                                 VideoHandler.start_video(id_tracked)
 
                             elif ratio_detection > 0.2 and id_tracked not in VideoHandler.id_inside_door_detected:
-                                VideoHandler.set_id(id_tracked)
-                                VideoHandler.continue_opened_video(seconds=3)
-                            # elif ratio_detection > 0.3 and counter.people_init.get(id_tracked) == 1:
-                            #     VideoHandler.continue_opened_video(seconds=2)
+                                VideoHandler.continue_opened_video(id=id_tracked, seconds=3)
+
+                            elif ratio_detection > 0.4 and counter.people_init.get(id_tracked) == 1:
+                                VideoHandler.continue_opened_video(id=id_tracked, seconds=1)
 
                             if id_tracked not in counter.people_init or counter.people_init[id_tracked] == 0:
                                 counter.obj_initialized(id_tracked)
@@ -202,10 +203,10 @@ def detect(config):
                                     elif rat < 0.4:
                                         #     initialized in the corridor, mb going in
                                         counter.people_init[id_tracked] = 1
-                                    counter.frame_age_counter[id_tracked] = 0
                                 else:
                                     # res is None, means that object is not in door contour
                                     counter.people_init[id_tracked] = 1
+                                counter.frame_age_counter[id_tracked] = 0
 
                                 counter.people_bbox[id_tracked] = bbox_tracked
 
@@ -223,9 +224,11 @@ def detect(config):
                 cur_square = 0
                 ratio = 0
                 cur_c = find_centroid(counter.cur_bbox[val])
-                init_c = find_centroid(counter.people_bbox[val])
-                vector_person = (cur_c[0] - init_c[0],
-                                 cur_c[1] - init_c[1])
+                centroid_distance = np.sum(np.array([(door_c[i] - cur_c[i]) ** 2 for i in range(len(door_c))]))
+
+                # init_c = find_centroid(counter.people_bbox[val])
+                # vector_person = (cur_c[0] - init_c[0],
+                #                  cur_c[1] - init_c[1])
 
                 rect_cur = Rectangle(counter.cur_bbox[val][0], counter.cur_bbox[val][1],
                                      counter.cur_bbox[val][2], counter.cur_bbox[val][3])
@@ -243,9 +246,10 @@ def detect(config):
                             ratio = 0
                     # if vector_person < 0 then current coord is less than initialized, it means that man is going
                     # in the exit direction
+
                     if counter.people_init[val] == 2 \
-                            and ratio < 0.3:  # vector_person[1] > 50 and
-                        print('ratio out: ', ratio)
+                            and ratio < 0.4 and centroid_distance > 5000:  # vector_person[1] > 50 and
+                        print('ratio out: {}\n centroids: {}\n'.format(ratio, centroid_distance))
                         counter.get_out()
                         counter.people_init[val] = -1
                         VideoHandler.stop_recording(action_occured="вышел из кабинета")
@@ -253,8 +257,8 @@ def detect(config):
                         vals_to_del.append(val)
 
                     elif counter.people_init[val] == 1 \
-                            and ratio >= 0.4:  # vector_person[1] < -50 and
-                        print('ratio in: ', ratio)
+                            and ratio >= 0.4 and centroid_distance < 1000:  # vector_person[1] < -50 and
+                        print('ratio in: {}\n centroids: {}\n'.format(ratio, centroid_distance))
                         counter.get_in()
                         counter.people_init[val] = -1
                         VideoHandler.stop_recording(action_occured="зашел внутрь")
@@ -264,7 +268,7 @@ def detect(config):
 
                 # TODO maybe delete this condition
                 elif counter.frame_age_counter.get(val, 0) >= counter.max_frame_age_counter \
-                        and counter.people_init[val] == 2:
+                        and counter.people_init[val] == 2 :
                     if inter:
                         inter_square = rect_square(*inter)
                         cur_square = rect_square(*rect_cur)
@@ -273,7 +277,7 @@ def detect(config):
                         except ZeroDivisionError:
                             ratio = 0
 
-                    if ratio < 0.2:  # vector_person[1] > 50 and
+                    if ratio < 0.2 and centroid_distance > 10000:  # vector_person[1] > 50 and
                         counter.get_out()
                         print('ratio out max frames: ', ratio)
                         counter.people_init[val] = -1
@@ -297,10 +301,6 @@ def detect(config):
             cv2.putText(im0, "in: {}, out: {} ".format(ins, outs), (10, 35), 0,
                         1e-3 * im0.shape[0], (255, 255, 255), 3)
 
-            print('\nflag_personindoor: ', VideoHandler.flag_personindoor)
-            print('flag_stop_writing: ', VideoHandler.flag_stop_writing)
-            print('counter_frames_indoor: ', VideoHandler.counter_frames_indoor)
-
             if VideoHandler.stop_writing(im0):
                 # send_new_posts(video_name, action_occured)
                 sock.sendall(bytes(VideoHandler.video_name + ":" + VideoHandler.action_occured, "utf-8"))
@@ -321,19 +321,19 @@ def detect(config):
             # t2_ds = time.time()
             # print('%s Torch:. (%.3fs)' % (s, t2 - t1))
             # print('Full pipe. (%.3fs)' % (t2_ds - t0_ds))
-            if len (fpeses) != 10:
+            if len (fpeses) < 30:
                 fpeses.append(round(1 / delta_time))
-            elif len(fpeses) == 10:
-                fps = np.median(np.array(fpeses))
+            elif len(fpeses) == 30:
+                fps = round(np.median(np.array(fpeses)))
                 print('fps set: ', fps)
                 VideoHandler.set_fps(fps)
                 counter.set_fps(fps)
+                fpeses.append(fps)
+            else:
+                print('\nflag_personindoor: ', VideoHandler.flag_personindoor)
+                print('flag_stop_writing: ', VideoHandler.flag_stop_writing)
+                print('counter_frames_indoor: ', VideoHandler.counter_frames_indoor)
             # fps = 20
-
-
-    # vid_writer.release()
-
-
 # python detect.py --cfg cfg/csdarknet53s-panet-spp.cfg --weights cfg/best14x-49.pt --source 0
 import json
 
