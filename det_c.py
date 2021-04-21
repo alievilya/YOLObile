@@ -12,6 +12,7 @@ from utils.utils import *
 def detect(config):
     sent_videos = set()
     video_name = ""
+    fpeses = []
 
     # door_array = select_object()
     # door_array = [475, 69, 557, 258]
@@ -320,12 +321,15 @@ def detect(config):
             # t2_ds = time.time()
             # print('%s Torch:. (%.3fs)' % (s, t2 - t1))
             # print('Full pipe. (%.3fs)' % (t2_ds - t0_ds))
-
-            fps = round(1 / delta_time)
+            if len (fpeses) != 10:
+                fpeses.append(round(1 / delta_time))
+            elif len(fpeses) == 10:
+                fps = np.median(np.array(fpeses))
+                print('fps set: ', fps)
+                VideoHandler.set_fps(fps)
+                counter.set_fps(fps)
             # fps = 20
-            print('fps set: ', fps)
-            VideoHandler.set_fps(fps)
-            counter.set_fps(fps)
+
 
     # vid_writer.release()
 
