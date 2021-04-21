@@ -29,8 +29,8 @@ def get_truth(video_name):
 class Counter:
     def __init__(self, counter_in, counter_out, track_id):
         self.fps = 20
-        self.max_frame_age_counter = self.fps * 60  #  TODO maybe delete this condition
-        self.max_age_counter = self.fps * 4
+        self.max_frame_age_counter = self.fps * 5  #  TODO check
+        self.max_age_counter = self.fps * 2
 
         self.people_init = OrderedDict()
         self.people_bbox = OrderedDict()
@@ -141,7 +141,8 @@ class Writer():
         self.set_video()
         self.set_id(id_tracked)
 
-    def continue_opened_video(self, seconds=1):
+    def continue_opened_video(self, id, seconds=1):
+        self.set_id(id)
         self.max_counter_frames_indoor += self.fps*seconds
 
     def stop_recording(self, action_occured):
@@ -257,7 +258,7 @@ def select_object(img):
         # display the image and wait for a keypress
         if not drawing:
             cv2.namedWindow('image', cv2.WINDOW_NORMAL)
-            cv2.resizeWindow('image', 1200, 600)
+            cv2.resizeWindow('image', 1280, 720)
             cv2.imshow('image', img)
         elif drawing and rect_endpoint_tmp:
             rect_cpy = img.copy()
