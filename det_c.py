@@ -7,13 +7,12 @@ from tracking_modules import Counter, Writer
 from tracking_modules import find_centroid, Rectangle, rect_square, bbox_rel, draw_boxes, select_object
 from utils.datasets import *
 from utils.utils import *
-import codecs
+
 
 def detect(config):
     sent_videos = set()
     video_name = ""
     fpeses = []
-    fps = None
 
     # door_array = select_object()
     # door_array = [475, 69, 557, 258]
@@ -22,8 +21,10 @@ def detect(config):
     # door_array = [528, 21, 581, 315]
     # door_array = [596, 76, 650, 295]  #  18 stream
     door_array = [611, 70, 663, 310]
-    # around_door_array = [470, 34, 722, 391]
-    around_door_array = [507, 40, 715, 372]    #
+    # around_door_array = [572, 79, 694, 306]  #
+    around_door_array = [470, 34, 722, 391]
+    low_border = 225
+    #
     rect_door = Rectangle(door_array[0], door_array[1], door_array[2], door_array[3])
     door_c = find_centroid(door_array)
     rect_around_door = Rectangle(around_door_array[0], around_door_array[1], around_door_array[2], around_door_array[3])
@@ -183,6 +184,9 @@ def detect(config):
                                 VideoHandler.start_video(id_tracked)
 
                             elif ratio_detection > 0.2 and id_tracked not in VideoHandler.id_inside_door_detected:
+                                VideoHandler.continue_opened_video(id=id_tracked, seconds=3)
+
+                            elif ratio_detection > 0.4 and counter.people_init.get(id_tracked) == 1:
                                 VideoHandler.continue_opened_video(id=id_tracked, seconds=1)
 
                             # elif ratio_detection > 0.6 and counter.people_init.get(id_tracked) == 1:
@@ -197,7 +201,7 @@ def detect(config):
                                     intersection_square = rect_square(*intersection)
                                     head_square = rect_square(*rect_head)
                                     rat = intersection_square / head_square
-                                    if rat >= 0.4:
+                                    if rat >= 0.4 and bbox_tracked[3] > low_border :
                                         #     was initialized in door, probably going out of office
                                         counter.people_init[id_tracked] = 2
                                     elif rat < 0.4:
@@ -298,8 +302,14 @@ def detect(config):
                           (int(door_array[2]), int(door_array[3])),
                           (23, 158, 21), 3)
 
+            cv2.rectangle(im0, (int(around_door_array[0]), int(around_door_array[1])),
+                          (int(around_door_array[2]), int(around_door_array[3])),
+                          (48, 58, 221), 3)
+
             cv2.putText(im0, "in: {}, out: {} ".format(ins, outs), (10, 35), 0,
                         1e-3 * im0.shape[0], (255, 255, 255), 3)
+
+            cv2.line(im0, (door_array[0], low_border), (880, low_border), (214, 4, 54), 4)
 
             if VideoHandler.stop_writing(im0):
                 # send_new_posts(video_name, action_occured)
@@ -311,7 +321,6 @@ def detect(config):
                     wr.write('video {}, man {}, centroid {} '.format(VideoHandler.video_name, VideoHandler.action_occured, centroid_distance))
 
                 VideoHandler = Writer()
-                VideoHandler.set_fps(frames_per_second=fps)
 
             else:
                 VideoHandler.continue_writing(im0)
@@ -334,11 +343,9 @@ def detect(config):
                 counter.set_fps(fps)
                 fpeses.append(fps)
             else:
-                # print('\nflag_personindoor: ', VideoHandler.flag_personindoor)
-                # print('flag_stop_writing: ', VideoHandler.flag_stop_writing)
-                if VideoHandler.counter_frames_indoor != 0:
-                    print('counter_frames_indoor: ', VideoHandler.counter_frames_indoor)
-
+                print('\nflag_personindoor: ', VideoHandler.flag_personindoor)
+                print('flag_stop_writing: ', VideoHandler.flag_stop_writing)
+                print('counter_frames_indoor: ', VideoHandler.counter_frames_indoor)
             # fps = 20
 # python detect.py --cfg cfg/csdarknet53s-panet-spp.cfg --weights cfg/best14x-49.pt --source 0
 import json
