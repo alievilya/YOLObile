@@ -198,7 +198,7 @@ def detect(config):
                                     intersection_square = rect_square(*intersection)
                                     head_square = rect_square(*rect_head)
                                     rat = intersection_square / head_square
-                                    if rat >= 0.4 and bbox_tracked[1] > low_border :
+                                    if rat >= 0.4 and bbox_tracked[3] > low_border :
                                         #     was initialized in door, probably going out of office
                                         counter.people_init[id_tracked] = 2
                                     elif rat < 0.4:
@@ -227,9 +227,6 @@ def detect(config):
                 cur_c = find_centroid(counter.cur_bbox[val])
                 centroid_distance = np.sum(np.array([(door_c[i] - cur_c[i]) ** 2 for i in range(len(door_c))]))
 
-                # init_c = find_centroid(counter.people_bbox[val])
-                # vector_person = (cur_c[0] - init_c[0],
-                #                  cur_c[1] - init_c[1])
 
                 rect_cur = Rectangle(counter.cur_bbox[val][0], counter.cur_bbox[val][1],
                                      counter.cur_bbox[val][2], counter.cur_bbox[val][3])
@@ -245,8 +242,7 @@ def detect(config):
 
                         except ZeroDivisionError:
                             ratio = 0
-                    # if vector_person < 0 then current coord is less than initialized, it means that man is going
-                    # in the exit direction
+
 
                     if counter.people_init[val] == 2 \
                             and ratio < 0.4 and centroid_distance > 5000:  # vector_person[1] > 50 and
@@ -334,7 +330,7 @@ def detect(config):
                 fps = round(np.median(np.array(fpeses)))
                 print('fps set: ', fps)
                 VideoHandler.set_fps(fps)
-                counter.set_fps(fps)
+                counter.set_fps(20)
                 fpeses.append(fps)
             else:
                 print('\nflag_personindoor: ', VideoHandler.flag_personindoor)
