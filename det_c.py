@@ -23,6 +23,7 @@ def detect(config):
     door_array = [611, 70, 663, 310]
     # around_door_array = [572, 79, 694, 306]  #
     around_door_array = [470, 34, 722, 391]
+    low_border = 225
     #
     rect_door = Rectangle(door_array[0], door_array[1], door_array[2], door_array[3])
     door_c = find_centroid(door_array)
@@ -197,7 +198,7 @@ def detect(config):
                                     intersection_square = rect_square(*intersection)
                                     head_square = rect_square(*rect_head)
                                     rat = intersection_square / head_square
-                                    if rat >= 0.4:
+                                    if rat >= 0.4 and bbox_tracked[1] > low_border :
                                         #     was initialized in door, probably going out of office
                                         counter.people_init[id_tracked] = 2
                                     elif rat < 0.4:
@@ -298,8 +299,14 @@ def detect(config):
                           (int(door_array[2]), int(door_array[3])),
                           (23, 158, 21), 3)
 
+            cv2.rectangle(im0, (int(around_door_array[0]), int(around_door_array[1])),
+                          (int(around_door_array[2]), int(around_door_array[3])),
+                          (48, 58, 221), 3)
+
             cv2.putText(im0, "in: {}, out: {} ".format(ins, outs), (10, 35), 0,
                         1e-3 * im0.shape[0], (255, 255, 255), 3)
+
+            cv2.line(im0, (door_array[0], low_border), (880, low_border), (214, 4, 54), 4)
 
             if VideoHandler.stop_writing(im0):
                 # send_new_posts(video_name, action_occured)
