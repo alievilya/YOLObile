@@ -7,12 +7,13 @@ from tracking_modules import Counter, Writer
 from tracking_modules import find_centroid, Rectangle, rect_square, bbox_rel, draw_boxes, select_object
 from utils.datasets import *
 from utils.utils import *
-
+import codecs
 
 def detect(config):
     sent_videos = set()
     video_name = ""
     fpeses = []
+    fps = None
 
     # door_array = select_object()
     # door_array = [475, 69, 557, 258]
@@ -21,9 +22,8 @@ def detect(config):
     # door_array = [528, 21, 581, 315]
     # door_array = [596, 76, 650, 295]  #  18 stream
     door_array = [611, 70, 663, 310]
-    # around_door_array = [572, 79, 694, 306]  #
-    around_door_array = [470, 34, 722, 391]
-    #
+    # around_door_array = [470, 34, 722, 391]
+    around_door_array = [507, 40, 715, 372]    #
     rect_door = Rectangle(door_array[0], door_array[1], door_array[2], door_array[3])
     door_c = find_centroid(door_array)
     rect_around_door = Rectangle(around_door_array[0], around_door_array[1], around_door_array[2], around_door_array[3])
@@ -183,10 +183,10 @@ def detect(config):
                                 VideoHandler.start_video(id_tracked)
 
                             elif ratio_detection > 0.2 and id_tracked not in VideoHandler.id_inside_door_detected:
-                                VideoHandler.continue_opened_video(id=id_tracked, seconds=3)
-
-                            elif ratio_detection > 0.4 and counter.people_init.get(id_tracked) == 1:
                                 VideoHandler.continue_opened_video(id=id_tracked, seconds=1)
+
+                            # elif ratio_detection > 0.6 and counter.people_init.get(id_tracked) == 1:
+                            #     VideoHandler.continue_opened_video(id=id_tracked, seconds=0.005)
 
                             if id_tracked not in counter.people_init or counter.people_init[id_tracked] == 0:
                                 counter.obj_initialized(id_tracked)
@@ -306,8 +306,12 @@ def detect(config):
                 sock.sendall(bytes(VideoHandler.video_name + ":" + VideoHandler.action_occured, "utf-8"))
                 data = sock.recv(100)
                 print('Received', repr(data.decode("utf-8")))
-                sent_videos.add(video_name)
+                sent_videos.add(VideoHandler.video_name)
+                with open('data_files/logs2.txt', 'a', encoding="utf-8-sig") as wr:
+                    wr.write('video {}, man {}, centroid {} '.format(VideoHandler.video_name, VideoHandler.action_occured, centroid_distance))
+
                 VideoHandler = Writer()
+                VideoHandler.set_fps(frames_per_second=fps)
 
             else:
                 VideoHandler.continue_writing(im0)
@@ -330,9 +334,11 @@ def detect(config):
                 counter.set_fps(fps)
                 fpeses.append(fps)
             else:
-                print('\nflag_personindoor: ', VideoHandler.flag_personindoor)
-                print('flag_stop_writing: ', VideoHandler.flag_stop_writing)
-                print('counter_frames_indoor: ', VideoHandler.counter_frames_indoor)
+                # print('\nflag_personindoor: ', VideoHandler.flag_personindoor)
+                # print('flag_stop_writing: ', VideoHandler.flag_stop_writing)
+                if VideoHandler.counter_frames_indoor != 0:
+                    print('counter_frames_indoor: ', VideoHandler.counter_frames_indoor)
+
             # fps = 20
 # python detect.py --cfg cfg/csdarknet53s-panet-spp.cfg --weights cfg/best14x-49.pt --source 0
 import json
