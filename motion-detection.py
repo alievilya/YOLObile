@@ -57,42 +57,6 @@ def get_median(process):
     return medianFrameGray
 
 
-# Calculate the average along the time axis
-
-# avgFrame = np.average(frames, axis=0).astype(dtype=np.uint8)
-# sample_frame=frames[0]
-# grayMedianFrame = cv2.cvtColor(medianFrame, cv2.COLOR_BGR2GRAY)
-# graySample=cv2.cvtColor(sample_frame, cv2.COLOR_BGR2GRAY)
-# dframe = cv2.absdiff(graySample, grayMedianFrame)
-# blurred = cv2.GaussianBlur(dframe, (11,11), 0)
-# ret, tframe= cv2.threshold(blurred,100,255,cv2.THRESH_BINARY+cv2.THRESH_OTSU)
-
-# cv2.imshow('0',fixColor(medianFrame))
-# cv2.imshow('1',fixColor(avgFrame))
-# cv2.imshow('2',fixColor(sample_frame))
-# cv2.imshow('3',fixColor(grayMedianFrame))
-# cv2.imshow('4',fixColor(graySample))
-# cv2.imshow('5',fixColor(dframe))
-# cv2.imshow('6',fixColor(blurred))
-# cv2.imshow('7',fixColor(tframe))
-# cv2.waitKey(0)
-
-# (cnts, _) = cv2.findContours(tframe.copy(), cv2.RETR_EXTERNAL,
-#                              cv2 .CHAIN_APPROX_SIMPLE)
-#
-# for cnt in cnts:
-#     x,y,w,h = cv2.boundingRect(cnt)
-#     if y > 200:  #Disregard item that are the top of the picture
-#         cv2.rectangle(sample_frame,(x,y),(x+w,y+h),(0,255,0),2)
-#
-# plt.imshow(fixColor(sample_frame))
-
-
-# writer = cv2.VideoWriter("output.avi",
-#                          cv2.VideoWriter_fourcc(*"XVID"), 30,(640,480))
-
-
-#Create a new video stream and get total frame count
 frameCnt=True
 
 cnt = 0

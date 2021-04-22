@@ -177,6 +177,8 @@ class Writer():
                 self.output_video.release()
                 self.flag_stop_writing = False
                 return True
+        if self.flag_stop_writing and not self.flag_personindoor:
+            self.flag_stop_writing = False
 
                 # send_new_posts(video_name, action_occured)
 
