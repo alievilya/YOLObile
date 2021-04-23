@@ -3,7 +3,7 @@ import socket
 from deep_sort_pytorch.deep_sort import DeepSort
 from deep_sort_pytorch.utils.parser import get_config
 from models import *  # set ONNX_EXPORT in models.py
-from tracking_modules import Counter, Writer
+from tracking_modules import Counter, Writer, MotionDetector
 from tracking_modules import find_centroid, Rectangle, rect_square, bbox_rel, draw_boxes, select_object
 from utils.datasets import *
 from utils.utils import *
@@ -24,6 +24,8 @@ def detect(config):
     # around_door_array = [572, 79, 694, 306]  #
     around_door_array = [470, 34, 722, 391]
     low_border = 225
+    motion_detection = False
+
     #
     rect_door = Rectangle(door_array[0], door_array[1], door_array[2], door_array[3])
     door_c = find_centroid(door_array)
@@ -49,6 +51,8 @@ def detect(config):
                         nms_max_overlap=cfg.DEEPSORT.NMS_MAX_OVERLAP, max_iou_distance=cfg.DEEPSORT.MAX_IOU_DISTANCE,
                         max_age=cfg.DEEPSORT.MAX_AGE, n_init=cfg.DEEPSORT.N_INIT, nn_budget=cfg.DEEPSORT.NN_BUDGET,
                         use_cuda=True)
+
+    MoveDetector = MotionDetector()
 
     # Initialize device, weights etc.
     device = torch_utils.select_device(device='cpu' if ONNX_EXPORT else config["device"])
@@ -91,6 +95,25 @@ def detect(config):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((HOST, PORT))
         for frame_idx, (path, img, im0s, vid_cap) in enumerate(dataset):
+            flag_move = False
+            flag_anyone_in_door = False
+
+            # if motion_detection:
+            #
+            #     if webcam:  # batch_size >= 1
+            #         p, s, im0 = path[0], '%g: ' % i, im0s[0].copy()
+            #     else:
+            #         p, s, im0 = path, '', im0s
+            #
+            #     flag_move = MoveDetector.find_motion(im0)
+            #
+            # #  TODO motion detection instead of yolo
+            # if flag_move:
+            #     print("flag_move = True")
+            # else:
+            #     continue
+
+
             t0_ds = time.time()
             ratio_detection = 0
             img = torch.from_numpy(img).to(device)
@@ -101,7 +124,6 @@ def detect(config):
             # Inference
             t1 = torch_utils.time_synchronized()
             pred = model(img, augment=config["augment"])[0]
-
             # to float
             if half:
                 pred = pred.float()
@@ -179,15 +201,15 @@ def detect(config):
                                 except ZeroDivisionError:
                                     ratio_detection = 0
                                 #  чел первый раз в контуре двери
-                            if ratio_detection > 0.2 and VideoHandler.counter_frames_indoor == 0:
-                                #     флаг о начале записи
-                                VideoHandler.start_video(id_tracked)
+                            if ratio_detection > 0.2:
+                                if VideoHandler.counter_frames_indoor == 0:
+                                    #     флаг о начале записи
+                                    VideoHandler.start_video(id_tracked)
+                                flag_anyone_in_door = True
 
                             elif ratio_detection > 0.2 and id_tracked not in VideoHandler.id_inside_door_detected:
                                 VideoHandler.continue_opened_video(id=id_tracked, seconds=3)
-
-                            elif ratio_detection > 0.4 and counter.people_init.get(id_tracked) == 1:
-                                VideoHandler.continue_opened_video(id=id_tracked, seconds=1)
+                                flag_anyone_in_door = True
 
                             # elif ratio_detection > 0.6 and counter.people_init.get(id_tracked) == 1:
                             #     VideoHandler.continue_opened_video(id=id_tracked, seconds=0.005)
@@ -229,10 +251,6 @@ def detect(config):
                 ratio = 0
                 cur_c = find_centroid(counter.cur_bbox[val])
                 centroid_distance = np.sum(np.array([(door_c[i] - cur_c[i]) ** 2 for i in range(len(door_c))]))
-
-                # init_c = find_centroid(counter.people_bbox[val])
-                # vector_person = (cur_c[0] - init_c[0],
-                #                  cur_c[1] - init_c[1])
 
                 rect_cur = Rectangle(counter.cur_bbox[val][0], counter.cur_bbox[val][1],
                                      counter.cur_bbox[val][2], counter.cur_bbox[val][3])
@@ -319,11 +337,10 @@ def detect(config):
                 sent_videos.add(VideoHandler.video_name)
                 with open('data_files/logs2.txt', 'a', encoding="utf-8-sig") as wr:
                     wr.write('video {}, man {}, centroid {} '.format(VideoHandler.video_name, VideoHandler.action_occured, centroid_distance))
-
                 VideoHandler = Writer()
 
             else:
-                VideoHandler.continue_writing(im0)
+                VideoHandler.continue_writing(im0, flag_anyone_in_door)
 
             if view_img:
                 cv2.imshow(p, im0)
@@ -338,13 +355,16 @@ def detect(config):
                 fpeses.append(round(1 / delta_time))
             elif len(fpeses) == 30:
                 fps = round(np.median(np.array(fpeses)))
+                # fps = 20
                 print('fps set: ', fps)
                 VideoHandler.set_fps(fps)
                 counter.set_fps(fps)
                 fpeses.append(fps)
+                motion_detection = True
             else:
-                print('\nflag_personindoor: ', VideoHandler.flag_personindoor)
+                print('\nflag writing video: ', VideoHandler.flag_writing_video)
                 print('flag_stop_writing: ', VideoHandler.flag_stop_writing)
+                print('flag_anyone_in_door: ', flag_anyone_in_door)
                 print('counter_frames_indoor: ', VideoHandler.counter_frames_indoor)
             # fps = 20
 # python detect.py --cfg cfg/csdarknet53s-panet-spp.cfg --weights cfg/best14x-49.pt --source 0
