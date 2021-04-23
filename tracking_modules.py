@@ -194,7 +194,7 @@ class MotionDetector():
 class Writer():
     def __init__(self):
         self.fps = 3
-        self.max_counter_frames_indoor = self.fps * 8
+        self.max_counter_frames_indoor = self.fps * 12
         self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
         self.counter_frames_indoor = 0
         self.flag_stop_writing = False
@@ -264,6 +264,7 @@ class Writer():
 
         if self.flag_stop_writing and not self.flag_writing_video:
             self.flag_stop_writing = False
+            return False
 
             # send_new_posts(video_name, action_occured)
 
