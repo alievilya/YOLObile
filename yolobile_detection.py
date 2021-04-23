@@ -83,8 +83,18 @@ def detect(config):
     img = torch.zeros((1, 3, imgsz, imgsz), device=device)  # init img
     _ = model(img.half() if half else img.float()) if device.type != 'cpu' else None  # run once
     # flag_personindoor = False
+    mean_values = []
+    median_frame_value = None
+    prev_frame = None
+    initialize_mean = True
 
     for frame_idx, (path, img, im0s, vid_cap) in enumerate(dataset):
+        if initialize_mean and len(mean_values) < 20:
+            mean_values.append(np.mean(im0s[0]))
+        else:
+            median_frame_value = np.median(mean_values)
+            initialize_mean = False
+            print(median_frame_value)
         t0 = time.time()
         ratio_detection = 0
         img = torch.from_numpy(img).to(device)
@@ -104,6 +114,13 @@ def detect(config):
         pred = non_max_suppression(pred, config["conf_thres"], config["iou_thres"],
                                    multi_label=False, classes=classes, agnostic=config["agnostic_nms"])
         # Process detections
+        gray_img = cv2.cvtColor(im0s, cv2.COLOR_BGR2GRAY)
+
+        if median_frame_value:
+            frame_difference = np.max(abs(gray_img-median_frame_value))
+            print(frame_difference)
+
+
         for i, det in enumerate(pred):  # detections for image i
             if webcam:  # batch_size >= 1
                 p, s, im0 = path[i], '%g: ' % i, im0s[i].copy()
@@ -147,8 +164,8 @@ def detect(config):
                 if len(detections) == 0:
                     continue
 
-        door_array = select_object(im0)
-        print(door_array)
+        # door_array = select_object(im0)[0]
+        # print(door_array[0])
 
         cv2.rectangle(im0, (int(door_array[0]), int(door_array[1])),
                       (int(door_array[2]), int(door_array[3])),

@@ -5,6 +5,7 @@ from time import gmtime
 from time import strftime
 
 import cv2
+import imutils
 
 
 class CountTruth:
@@ -29,8 +30,8 @@ def get_truth(video_name):
 class Counter:
     def __init__(self, counter_in, counter_out, track_id):
         self.fps = 20
-        self.max_frame_age_counter = self.fps * 5  #  TODO check
-        self.max_age_counter = self.fps * 2
+        self.max_frame_age_counter = self.fps * 5  # TODO check
+        self.max_age_counter = self.fps * 1
 
         self.people_init = OrderedDict()
         self.people_bbox = OrderedDict()
@@ -110,6 +111,86 @@ class Counter:
         self.fps = frames_per_second
 
 
+class MotionDetector():
+    def __init__(self):
+        # Number of frames to pass before changing the frame to compare the current
+        # frame against
+        self.FRAMES_TO_PERSIST = 5
+        # Minimum boxed area for a detected motion to count as actual motion
+        # Use to filter out noise or small objects
+        self.MIN_SIZE_FOR_MOVEMENT = 1400
+        # Minimum length of time where no motion is detected it should take
+        # (in program cycles) for the program to declare that there is no movement
+        self.MOVEMENT_DETECTED_PERSISTENCE = 30
+        # Init frame variables
+        self.first_frame = None
+        self.next_frame = None
+        # Init display font and timeout counters
+        self.font = cv2.FONT_HERSHEY_SIMPLEX
+        self.delay_counter = 0
+        self.movement_persistent_counter = 0
+
+    def init_first_frame(self, grayframe):
+        if self.first_frame is None:
+            self.first_frame = grayframe
+    # Read frame
+    def find_motion(self, frame):
+        self.transient_movement_flag = False
+        # Resize and save a greyscale version of the image
+        frame = imutils.resize(frame, width=750)
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        # Blur it to remove camera noise (reducing false positives)
+        gray = cv2.GaussianBlur(gray, (21, 21), 0)
+        # If the first frame is nothing, initialise it
+        self.init_first_frame(gray)
+        self.delay_counter += 1
+        # Otherwise, set the first frame to compare as the previous frame
+        # But only if the counter reaches the appriopriate value
+        # The delay is to allow relatively slow motions to be counted as large
+        # motions if they're spread out far enough
+        if self.delay_counter > self.FRAMES_TO_PERSIST:
+            delay_counter = 0
+            self.first_frame = self.next_frame
+
+        # Set the next frame to compare (the current frame)
+        self.next_frame = gray
+
+        # Compare the two frames, find the difference
+        frame_delta = cv2.absdiff(self.first_frame, self.next_frame)
+        thresh = cv2.threshold(frame_delta, 25, 255, cv2.THRESH_BINARY)[1]
+
+        # Fill in holes via dilate(), and find contours of the thesholds
+        thresh = cv2.dilate(thresh, None, iterations=2)
+        cnts, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        # loop over the contours
+        for c in cnts:
+
+            # Save the coordinates of all found contours
+            (x, y, w, h) = cv2.boundingRect(c)
+
+            # If the contour is too small, ignore it, otherwise, there's transient
+            # movement
+            if cv2.contourArea(c) > self.MIN_SIZE_FOR_MOVEMENT:
+                self.transient_movement_flag = True
+
+                # Draw a rectangle around big enough movements
+                # cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+        # The moment something moves momentarily, reset the persistent
+        # movement timer.
+        if self.transient_movement_flag == True:
+            self.movement_persistent_flag = True
+            self.movement_persistent_counter = self.MOVEMENT_DETECTED_PERSISTENCE
+            return True
+
+        if self.movement_persistent_counter > 0:
+            self.movement_persistent_counter -= 1
+        else:
+            text = "No Movement Detected"
+            return False
+
+
 class Writer():
     def __init__(self):
         self.fps = 3
@@ -117,7 +198,7 @@ class Writer():
         self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
         self.counter_frames_indoor = 0
         self.flag_stop_writing = False
-        self.flag_personindoor = False
+        self.flag_writing_video = False
         self.id_inside_door_detected = set()
         self.action_occured = ""
         self.video_name = ""
@@ -136,14 +217,14 @@ class Writer():
         self.id_inside_door_detected.add(id)
 
     def start_video(self, id_tracked):
-        self.flag_personindoor = True
+        self.flag_writing_video = True
         self.counter_frames_indoor = 1
         self.set_video()
         self.set_id(id_tracked)
 
     def continue_opened_video(self, id, seconds=1):
         self.set_id(id)
-        self.max_counter_frames_indoor += self.fps*seconds
+        self.max_counter_frames_indoor += self.fps * seconds
 
     def stop_recording(self, action_occured):
         self.flag_stop_writing = True  # флаг об окончании записи
@@ -153,34 +234,38 @@ class Writer():
     def set_fps(self, frames_per_second):
         self.fps = frames_per_second
 
-    def continue_writing(self, im):
+    def continue_writing(self, im, flag_anyone_in_door):
         if self.counter_frames_indoor != 0:
             self.counter_frames_indoor += 1
             self.output_video.write(im)
             # return True
 
         if self.counter_frames_indoor == self.max_counter_frames_indoor:
-            self.counter_frames_indoor = 0
-            self.flag_personindoor = False
-            self.flag_stop_writing = False
+            if flag_anyone_in_door:
+                self.max_counter_frames_indoor += self.fps * 2
+            else:
+                self.counter_frames_indoor = 0
+                self.flag_writing_video = False
+                self.flag_stop_writing = False
 
-            if self.output_video.isOpened():
-                self.output_video.release()
+                if self.output_video.isOpened():
+                    self.output_video.release()
 
-                if os.path.exists(self.output_name):
-                    os.remove(self.output_name)
+                    if os.path.exists(self.output_name):
+                        os.remove(self.output_name)
 
     def stop_writing(self, im):
-        if self.flag_stop_writing and self.flag_personindoor:
+        if self.flag_stop_writing and self.flag_writing_video:
             self.output_video.write(im)
             if self.video_name[-3:] == "mp4" and self.video_name and os.path.exists(self.output_name):
                 self.output_video.release()
                 self.flag_stop_writing = False
                 return True
-        if self.flag_stop_writing and not self.flag_personindoor:
+
+        if self.flag_stop_writing and not self.flag_writing_video:
             self.flag_stop_writing = False
 
-                # send_new_posts(video_name, action_occured)
+            # send_new_posts(video_name, action_occured)
 
 
 rect_endpoint_tmp = []
