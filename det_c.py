@@ -186,8 +186,8 @@ def detect(config):
                             elif ratio_detection > 0.2 and id_tracked not in VideoHandler.id_inside_door_detected:
                                 VideoHandler.continue_opened_video(id=id_tracked, seconds=3)
 
-                            elif ratio_detection > 0.4 and counter.people_init.get(id_tracked) == 1:
-                                VideoHandler.continue_opened_video(id=id_tracked, seconds=1)
+                            # elif ratio_detection > 0.4 and counter.people_init.get(id_tracked) == 1:
+                            #     VideoHandler.continue_opened_video(id=id_tracked, seconds=1)
 
                             # elif ratio_detection > 0.6 and counter.people_init.get(id_tracked) == 1:
                             #     VideoHandler.continue_opened_video(id=id_tracked, seconds=0.005)
@@ -272,7 +272,7 @@ def detect(config):
 
                 # TODO maybe delete this condition
                 elif counter.frame_age_counter.get(val, 0) >= counter.max_frame_age_counter \
-                        and counter.people_init[val] == 2 :
+                        and counter.people_init[val] == 2:
                     if inter:
                         inter_square = rect_square(*inter)
                         cur_square = rect_square(*rect_cur)
@@ -318,7 +318,7 @@ def detect(config):
                 print('Received', repr(data.decode("utf-8")))
                 sent_videos.add(VideoHandler.video_name)
                 with open('data_files/logs2.txt', 'a', encoding="utf-8-sig") as wr:
-                    wr.write('video {}, man {}, centroid {} '.format(VideoHandler.video_name, VideoHandler.action_occured, centroid_distance))
+                    wr.write('video {}, man {}, centroid {} \n'.format(VideoHandler.video_name, VideoHandler.action_occured, centroid_distance))
 
                 VideoHandler = Writer()
 
