@@ -13,7 +13,7 @@ def detect(config):
     sent_videos = set()
     video_name = ""
     fpeses = []
-
+    timer = time.time()
     # door_array = select_object()
     # door_array = [475, 69, 557, 258]
     global flag, vid_writer, lost_ids
@@ -87,10 +87,10 @@ def detect(config):
 
     img = torch.zeros((1, 3, imgsz, imgsz), device=device)  # init img
     _ = model(img.half() if half else img.float()) if device.type != 'cpu' else None  # run once
-
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((HOST, PORT))
         for frame_idx, (path, img, im0s, vid_cap) in enumerate(dataset):
+            flag_anyone_in_door = False
             t0_ds = time.time()
             ratio_detection = 0
             img = torch.from_numpy(img).to(device)
@@ -350,6 +350,10 @@ def detect(config):
                 print('flag anyone in door: ', flag_anyone_in_door)
                 print('counter frames indoor: ', VideoHandler.counter_frames_indoor)
             # fps = 20
+
+            # if dataset.frame == dataset.nframes:
+            #     print(time.time() - timer)
+            #     break
 # python detect.py --cfg cfg/csdarknet53s-panet-spp.cfg --weights cfg/best14x-49.pt --source 0
 import json
 
@@ -362,3 +366,4 @@ if __name__ == '__main__':
 
     with torch.no_grad():
         detect(config=detect_config)
+
