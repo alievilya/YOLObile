@@ -114,7 +114,7 @@ def detect(config):
         pred = non_max_suppression(pred, config["conf_thres"], config["iou_thres"],
                                    multi_label=False, classes=classes, agnostic=config["agnostic_nms"])
         # Process detections
-        gray_img = cv2.cvtColor(im0s, cv2.COLOR_BGR2GRAY)
+        gray_img = cv2.cvtColor(im0s[0], cv2.COLOR_BGR2GRAY)
 
         if median_frame_value:
             frame_difference = np.max(abs(gray_img-median_frame_value))
@@ -164,8 +164,8 @@ def detect(config):
                 if len(detections) == 0:
                     continue
 
-        # door_array = select_object(im0)[0]
-        # print(door_array[0])
+        door_array = select_object(im0)[0]
+        print(door_array)
 
         cv2.rectangle(im0, (int(door_array[0]), int(door_array[1])),
                       (int(door_array[2]), int(door_array[3])),

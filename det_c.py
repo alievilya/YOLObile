@@ -13,7 +13,8 @@ def detect(config):
     sent_videos = set()
     video_name = ""
     fpeses = []
-    timer = time.time()
+    fps = 0
+
     # door_array = select_object()
     # door_array = [475, 69, 557, 258]
     global flag, vid_writer, lost_ids
@@ -23,6 +24,7 @@ def detect(config):
     door_array = [611, 70, 663, 310]
     # around_door_array = [572, 79, 694, 306]  #
     around_door_array = [470, 34, 722, 391]
+    around_door_array = [507, 24, 724, 374]
     low_border = 225
     #
     rect_door = Rectangle(door_array[0], door_array[1], door_array[2], door_array[3])
@@ -87,10 +89,29 @@ def detect(config):
 
     img = torch.zeros((1, 3, imgsz, imgsz), device=device)  # init img
     _ = model(img.half() if half else img.float()) if device.type != 'cpu' else None  # run once
+
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((HOST, PORT))
         for frame_idx, (path, img, im0s, vid_cap) in enumerate(dataset):
+            flag_move = False
             flag_anyone_in_door = False
+
+            # if motion_detection:
+            #
+            #     if webcam:  # batch_size >= 1
+            #         p, s, im0 = path[0], '%g: ' % i, im0s[0].copy()
+            #     else:
+            #         p, s, im0 = path, '', im0s
+            #
+            #     flag_move = MoveDetector.find_motion(im0)
+            #
+            # #  TODO motion detection instead of yolo
+            # if flag_move:
+            #     print("flag_move = True")
+            # else:
+            #     continue
+
+
             t0_ds = time.time()
             ratio_detection = 0
             img = torch.from_numpy(img).to(device)
@@ -321,6 +342,7 @@ def detect(config):
                     wr.write('video {}, man {}, centroid {} '.format(VideoHandler.video_name, VideoHandler.action_occured, centroid_distance))
 
                 VideoHandler = Writer()
+                VideoHandler.set_fps(fps)
 
             else:
                 VideoHandler.continue_writing(im0, flag_anyone_in_door)
@@ -337,7 +359,8 @@ def detect(config):
             if len (fpeses) < 30:
                 fpeses.append(round(1 / delta_time))
             elif len(fpeses) == 30:
-                fps = round(np.median(np.array(fpeses)))
+                # fps = round(np.median(np.array(fpeses)))
+                fps = np.median(np.array(fpeses))
                 # fps = 20
                 print('fps set: ', fps)
                 VideoHandler.set_fps(fps)
@@ -350,10 +373,6 @@ def detect(config):
                 print('flag anyone in door: ', flag_anyone_in_door)
                 print('counter frames indoor: ', VideoHandler.counter_frames_indoor)
             # fps = 20
-
-            # if dataset.frame == dataset.nframes:
-            #     print(time.time() - timer)
-            #     break
 # python detect.py --cfg cfg/csdarknet53s-panet-spp.cfg --weights cfg/best14x-49.pt --source 0
 import json
 
@@ -366,4 +385,3 @@ if __name__ == '__main__':
 
     with torch.no_grad():
         detect(config=detect_config)
-

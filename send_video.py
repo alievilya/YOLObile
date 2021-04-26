@@ -25,10 +25,9 @@ def send_new_posts(videoname, actionname):
     video = open(video_path, 'rb')
     video_time = videoname[:-4].split()
     text_caption = "Человек {} в {}:{}:{}".format(actionname, video_time[0], video_time[1], video_time[2])
-
     # bot.send_message(chat_id=channel,text="Человек {} в {}:{}:{}".
     #                  format(actionname, video_time[0], video_time[1], video_time[2]))
-    bot.send_video(chat_id=channel, data=video, caption=text_caption, supports_streaming=None, timeout=50)
+    bot.send_video(chat_id=channel, data=video, caption=text_caption, supports_streaming=True, timeout=50)
     # bot.send_message(channel, "короче я домой)) оставлю запущенным пока")
     # Спим секунду, чтобы избежать разного рода ошибок и ограничений (на всякий случай!)
     # time.sleep(1)
