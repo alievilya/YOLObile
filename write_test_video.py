@@ -5,11 +5,11 @@ cap = cv2.VideoCapture("rtsp://admin:admin@192.168.1.18:554/2/h264major")
 output_name = 'data_files/test1.mp4'
 fourcc = cv2.VideoWriter_fourcc(*'MP4V')
 output_video = cv2.VideoWriter(output_name, fourcc, 20, (1280, 720))
-# cnt = 20*2*60
-c = 1
+cnt = 20*2*60
+c = 0
 
-while c:
-    # c += 1
+while c < cnt:
+    c += 1
     ret, frame = cap.read()
 
     output_video.write(frame)

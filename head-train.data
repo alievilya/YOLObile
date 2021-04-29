@@ -1,4 +1,0 @@
-classes=1
-train=train.txt
-valid=valid.txt
-names=data/head-train.names
