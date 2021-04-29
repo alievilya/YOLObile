@@ -9,7 +9,7 @@
   "device": "0",
   "classes": "None",
   "fourcc": "mp4v",
-  "conf_thres": 0.3,
+  "conf_thres": 0.4,
   "img_size": 512,
   "iou_thres": 0.6,
   "output": "output",
