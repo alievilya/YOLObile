@@ -16,6 +16,9 @@
   "augment": "False",
   "agnostic_nms": "False",
   "half": "False",
+  "view_img": "False",
   "save_txt": "False",
-  "view_img": "False"
+  "category_num": 80,
+  "model": "yolov4",
+  "video_source": "None"
 }
