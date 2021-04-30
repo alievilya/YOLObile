@@ -46,7 +46,7 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             video_data = data.decode("utf-8").split(":")
             conn.sendall(bytes('received: ' + video_data[0] + video_data[1], "utf-8"))
             print(video_data)
-            send_new_posts(video_data[0], video_data[1])
+            # send_new_posts(video_data[0], video_data[1])
 
             # time.sleep(10)
 
