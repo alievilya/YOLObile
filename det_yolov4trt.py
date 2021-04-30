@@ -1,4 +1,9 @@
 import socket
+import pycuda.autoinit  # This is needed for initializing CUDA driver
+import cv2
+import os
+import time
+import argparse
 
 from deep_sort_pytorch.deep_sort import DeepSort
 from deep_sort_pytorch.utils.parser import get_config
@@ -11,32 +16,6 @@ from utils.yolo_classes import get_cls_dict
 from utils.yolo_with_plugins import get_input_shape, TrtYOLO
 
 WINDOW_NAME = 'TrtYOLODemo'
-
-
-# def parse_args():
-#     """Parse input arguments."""
-#     desc = ('Run the TensorRT optimized object detecion model on an input '
-#             'video and save BBoxed overlaid output as another video.')
-#     parser = argparse.ArgumentParser(description=desc)
-#     parser.add_argument(
-#         '-v', '--video', type=str, required=True,
-#         help='input video file name')
-#     parser.add_argument(
-#         '-o', '--output', type=str, required=True,
-#         help='output video file name')
-#     parser.add_argument(
-#         '-c', '--category_num', type=int, default=80,
-#         help='number of object categories [80]')
-#     parser.add_argument(
-#         '-m', '--model', type=str, required=True,
-#         help=('[yolov3|yolov3-tiny|yolov3-spp|yolov4|yolov4-tiny]-'
-#               '[{dimension}], where dimension could be a single '
-#               'number (e.g. 288, 416, 608) or WxH (e.g. 416x256)'))
-#     parser.add_argument(
-#         '-l', '--letter_box', action='store_true',
-#         help='inference with letterboxed image [False]')
-#     args = parser.parse_args()
-#     return args
 
 
 def perform_detection(frame, trt_yolo, conf_th, vis):
@@ -146,9 +125,10 @@ def detect(config):
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((HOST, PORT))
-        img_shape = (288, 288)
+        img_shape = (416, 416)
         # for frame_idx, (path, img, im0s, vid_cap) in enumerate(dataset):
         while True:
+            t0 = time.time()
             ret, im0 = cap.read()
             if not ret:
                 break
@@ -157,95 +137,102 @@ def detect(config):
 
             flag_move = False
             flag_anyone_in_door = False
-            t0 = time.time()
+            
             ratio_detection = 0
 
             # Process detections
             lost_ids = counter.return_lost_ids()
+            
             for i, (det, conf, cls) in enumerate(zip(preds, confs, clss)):
+                scaled_pred = []
+                scaled_conf = []
 
                 if det is not None and len(det):
                     # Rescale boxes from imgsz to im0 size
-                    # det = scale_coords(img_shape, det, im0.shape).round()
+                    
                     if names[int(cls)] not in config["needed_classes"]:
                         continue
                     # bbox_xywh = []
                     # confs = []
                     # Write results
-                    if save_img or view_img:  # Add bbox to image
-                        label = '%s %.2f' % (names[int(cls)], conf)
-                        plot_one_box(det, im0, label=label, color=colors[int(cls)])
 
-            detections = torch.Tensor(preds)
-            confidences = torch.Tensor(confs)
+                    #det = scale_coords(img_shape, det, im0.shape)
+                    scaled_pred.append(det)
+                    scaled_conf.append(conf)
+                    #if save_img or view_img:  # Add bbox to image
+                        #label = '%s %.2f' % (names[int(cls)], conf)
+                        #plot_one_box(det, im0, label=label, color=colors[int(cls)])
 
-            # Pass detections to deepsort
-            if len(detections) != 0:
-                outputs = deepsort.update(detections, confidences, im0)
-                # print('detections ', detections)
-                # print('outputs ', outputs)
+                detections = torch.Tensor(scaled_pred)
+                confidences = torch.Tensor([scaled_conf])
+                print('detections ', detections)
+                print('confidences ', confidences)
 
-                # draw boxes for visualization
-                if len(outputs) > 0:
-                    bbox_xyxy = outputs[:, :4]
-                    identities = outputs[:, -1]
-                    draw_boxes(im0, bbox_xyxy, identities)
-                    # print('bbox_xyxy ', bbox_xyxy)
-                    counter.update_identities(identities)
+                # Pass detections to deepsort
+                if len(detections) != 0:
+                    outputs = deepsort.update(detections, confidences, im0)
+                    #print('detections ', detections)
+                    print('outputs ', outputs)
 
-                    for bbox_tracked, id_tracked in zip(bbox_xyxy, identities):
+                    # draw boxes for visualization
+                    if len(outputs) > 0:
+                        bbox_xyxy = outputs[:, :4]
+                        identities = outputs[:, -1]
+                        draw_boxes(im0, bbox_xyxy, identities)
+                        print('bbox_xyxy ', bbox_xyxy, 'id', identities)
+                        counter.update_identities(identities)
 
-                        rect_detection = Rectangle(bbox_tracked[0], bbox_tracked[1],
-                                                   bbox_tracked[2], bbox_tracked[3])
-                        inter_detection = rect_detection & rect_around_door
-                        if inter_detection:
-                            inter_square_detection = rect_square(*inter_detection)
-                            cur_square_detection = rect_square(*rect_detection)
-                            try:
-                                ratio_detection = inter_square_detection / cur_square_detection
-                            except ZeroDivisionError:
-                                ratio_detection = 0
-                        #  чел первый раз в контуре двери
-                        if ratio_detection > 0.2:
-                            if VideoHandler.counter_frames_indoor == 0:
-                                #     флаг о начале записи
-                                VideoHandler.start_video(id_tracked)
-                            flag_anyone_in_door = True
+                        for bbox_tracked, id_tracked in zip(bbox_xyxy, identities):
 
-                        elif ratio_detection > 0.2 and id_tracked not in VideoHandler.id_inside_door_detected:
-                            VideoHandler.continue_opened_video(id=id_tracked, seconds=3)
-                            flag_anyone_in_door = True
+                            rect_detection = Rectangle(bbox_tracked[0], bbox_tracked[1],
+                                                       bbox_tracked[2], bbox_tracked[3])
+                            inter_detection = rect_detection & rect_around_door
+                            if inter_detection:
+                                inter_square_detection = rect_square(*inter_detection)
+                                cur_square_detection = rect_square(*rect_detection)
+                                try:
+                                    ratio_detection = inter_square_detection / cur_square_detection
+                                except ZeroDivisionError:
+                                    ratio_detection = 0
+                            #  чел первый раз в контуре двери
+                            if ratio_detection > 0.2:
+                                if VideoHandler.counter_frames_indoor == 0:
+                                    #     флаг о начале записи
+                                    VideoHandler.start_video(id_tracked)
+                                flag_anyone_in_door = True
 
-                        # elif ratio_detection > 0.6 and counter.people_init.get(id_tracked) == 1:
-                        #     VideoHandler.continue_opened_video(id=id_tracked, seconds=0.005)
+                            elif ratio_detection > 0.2 and id_tracked not in VideoHandler.id_inside_door_detected:
+                                VideoHandler.continue_opened_video(id=id_tracked, seconds=3)
+                                flag_anyone_in_door = True
 
-                        if id_tracked not in counter.people_init or counter.people_init[id_tracked] == 0:
-                            counter.obj_initialized(id_tracked)
-                            rect_head = Rectangle(bbox_tracked[0], bbox_tracked[1], bbox_tracked[2],
-                                                  bbox_tracked[3])
-                            intersection = rect_head & rect_door
-                            if intersection:
-                                intersection_square = rect_square(*intersection)
-                                head_square = rect_square(*rect_head)
-                                rat = intersection_square / head_square
-                                if rat >= 0.4 and bbox_tracked[3] > low_border:
-                                    #     was initialized in door, probably going out of office
-                                    counter.people_init[id_tracked] = 2
-                                elif rat < 0.4:
-                                    #     initialized in the corridor, mb going in
+                            # elif ratio_detection > 0.6 and counter.people_init.get(id_tracked) == 1:
+                            #     VideoHandler.continue_opened_video(id=id_tracked, seconds=0.005)
+
+                            if id_tracked not in counter.people_init or counter.people_init[id_tracked] == 0:
+                                counter.obj_initialized(id_tracked)
+                                rect_head = Rectangle(bbox_tracked[0], bbox_tracked[1], bbox_tracked[2],
+                                                      bbox_tracked[3])
+                                intersection = rect_head & rect_door
+                                if intersection:
+                                    intersection_square = rect_square(*intersection)
+                                    head_square = rect_square(*rect_head)
+                                    rat = intersection_square / head_square
+                                    if rat >= 0.4 and bbox_tracked[3] > low_border:
+                                        #     was initialized in door, probably going out of office
+                                        counter.people_init[id_tracked] = 2
+                                    elif rat < 0.4:
+                                        #     initialized in the corridor, mb going in
+                                        counter.people_init[id_tracked] = 1
+                                else:
+                                    # res is None, means that object is not in door contour
                                     counter.people_init[id_tracked] = 1
-                            else:
-                                # res is None, means that object is not in door contour
-                                counter.people_init[id_tracked] = 1
-                            counter.frame_age_counter[id_tracked] = 0
+                                counter.frame_age_counter[id_tracked] = 0
 
-                            counter.people_bbox[id_tracked] = bbox_tracked
+                                counter.people_bbox[id_tracked] = bbox_tracked
 
-                        counter.cur_bbox[id_tracked] = bbox_tracked
-        else:
-            deepsort.increment_ages()
-            # Print time (inference + NMS)
-            t2 = torch_utils.time_synchronized()
+                            counter.cur_bbox[id_tracked] = bbox_tracked
+            else:
+                deepsort.increment_ages()
 
             # Stream results
             vals_to_del = []
@@ -364,12 +351,13 @@ def detect(config):
             # t2_ds = time.time()
             # print('%s Torch:. (%.3fs)' % (s, t2 - t1))
             # print('Full pipe. (%.3fs)' % (t2_ds - t0_ds))
-            if len(fpeses) < 30:
+            if len(fpeses) < 3:
                 fpeses.append(round(1 / delta_time))
-            elif len(fpeses) == 30:
+                print(delta_time)
+            elif len(fpeses) == 3:
                 # fps = round(np.median(np.array(fpeses)))
                 fps = np.median(np.array(fpeses))
-                # fps = 3
+                fps = 10
                 print('fps set: ', fps)
                 VideoHandler.set_fps(fps)
                 counter.set_fps(fps)
