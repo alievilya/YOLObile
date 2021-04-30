@@ -146,7 +146,8 @@ def detect(config):
                 s += '%gx%g ' % img.shape[2:]  # print string
                 gn = torch.tensor(im0.shape)[[1, 0, 1, 0]]  #  normalization gain whwh
                 # lost_ids = counter.return_lost_ids()
-
+                bbox_xywh = []
+                confs = []
                 if det is not None and len(det):
                     # Rescale boxes from imgsz to im0 size
                     det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
@@ -156,8 +157,6 @@ def detect(config):
                             continue
                         n = (det[:, -1] == c).sum()  # detections per class
                         s += '%g %s, ' % (n, names[int(c)])  # add to string
-                    bbox_xywh = []
-                    confs = []
                     # Write results
                     for *xyxy, conf, cls in det:
                         #  check if bbox`s class is needed
@@ -172,74 +171,74 @@ def detect(config):
                             label = '%s %.2f' % (names[int(cls)], conf)
                             plot_one_box(xyxy, im0, label=label, color=colors[int(cls)])
 
-                    detections = torch.Tensor(bbox_xywh)
-                    confidences = torch.Tensor(confs)
+            detections = torch.Tensor(bbox_xywh)
+            confidences = torch.Tensor(confs)
 
-                    # Pass detections to deepsort
-                    if len(detections) == 0:
-                        continue
-                    outputs = deepsort.update(detections, confidences, im0)
+            # Pass detections to deepsort
+            # if len(detections) == 0:
+            #     continue
+            if len(detections) != 0:
+                outputs = deepsort.update(detections, confidences, im0)
+            # draw boxes for visualization
+                if len(outputs) > 0:
+                    bbox_xyxy = outputs[:, :4]
+                    identities = outputs[:, -1]
+                    draw_boxes(im0, bbox_xyxy, identities)
+                    counter.update_identities(identities)
 
-                    # draw boxes for visualization
-                    if len(outputs) > 0:
-                        bbox_xyxy = outputs[:, :4]
-                        identities = outputs[:, -1]
-                        draw_boxes(im0, bbox_xyxy, identities)
-                        counter.update_identities(identities)
+                    for bbox_tracked, id_tracked in zip(bbox_xyxy, identities):
 
-                        for bbox_tracked, id_tracked in zip(bbox_xyxy, identities):
+                        rect_detection = Rectangle(bbox_tracked[0], bbox_tracked[1],
+                                                   bbox_tracked[2], bbox_tracked[3])
+                        inter_detection = rect_detection & rect_around_door
+                        if inter_detection:
+                            inter_square_detection = rect_square(*inter_detection)
+                            cur_square_detection = rect_square(*rect_detection)
+                            try:
+                                ratio_detection = inter_square_detection / cur_square_detection
+                            except ZeroDivisionError:
+                                ratio_detection = 0
+                            #  чел первый раз в контуре двери
+                        if ratio_detection > 0.2:
+                            if VideoHandler.counter_frames_indoor == 0:
+                                #     флаг о начале записи
+                                VideoHandler.start_video(id_tracked)
+                            flag_anyone_in_door = True
 
-                            rect_detection = Rectangle(bbox_tracked[0], bbox_tracked[1],
-                                                       bbox_tracked[2], bbox_tracked[3])
-                            inter_detection = rect_detection & rect_around_door
-                            if inter_detection:
-                                inter_square_detection = rect_square(*inter_detection)
-                                cur_square_detection = rect_square(*rect_detection)
-                                try:
-                                    ratio_detection = inter_square_detection / cur_square_detection
-                                except ZeroDivisionError:
-                                    ratio_detection = 0
-                                #  чел первый раз в контуре двери
-                            if ratio_detection > 0.2:
-                                if VideoHandler.counter_frames_indoor == 0:
-                                    #     флаг о начале записи
-                                    VideoHandler.start_video(id_tracked)
-                                flag_anyone_in_door = True
+                        elif ratio_detection > 0.2 and id_tracked not in VideoHandler.id_inside_door_detected:
+                            VideoHandler.continue_opened_video(id=id_tracked, seconds=3)
+                            flag_anyone_in_door = True
 
-                            elif ratio_detection > 0.2 and id_tracked not in VideoHandler.id_inside_door_detected:
-                                VideoHandler.continue_opened_video(id=id_tracked, seconds=3)
-                                flag_anyone_in_door = True
+                        # elif ratio_detection > 0.6 and counter.people_init.get(id_tracked) == 1:
+                        #     VideoHandler.continue_opened_video(id=id_tracked, seconds=0.005)
 
-                            # elif ratio_detection > 0.6 and counter.people_init.get(id_tracked) == 1:
-                            #     VideoHandler.continue_opened_video(id=id_tracked, seconds=0.005)
-
-                            if id_tracked not in counter.people_init or counter.people_init[id_tracked] == 0:
-                                counter.obj_initialized(id_tracked)
-                                rect_head = Rectangle(bbox_tracked[0], bbox_tracked[1], bbox_tracked[2],
-                                                      bbox_tracked[3])
-                                intersection = rect_head & rect_door
-                                if intersection:
-                                    intersection_square = rect_square(*intersection)
-                                    head_square = rect_square(*rect_head)
-                                    rat = intersection_square / head_square
-                                    if rat >= 0.4 and bbox_tracked[3] > low_border :
-                                        #     was initialized in door, probably going out of office
-                                        counter.people_init[id_tracked] = 2
-                                    elif rat < 0.4:
-                                        #     initialized in the corridor, mb going in
-                                        counter.people_init[id_tracked] = 1
-                                else:
-                                    # res is None, means that object is not in door contour
+                        if id_tracked not in counter.people_init or counter.people_init[id_tracked] == 0:
+                            counter.obj_initialized(id_tracked)
+                            rect_head = Rectangle(bbox_tracked[0], bbox_tracked[1], bbox_tracked[2],
+                                                  bbox_tracked[3])
+                            intersection = rect_head & rect_door
+                            if intersection:
+                                intersection_square = rect_square(*intersection)
+                                head_square = rect_square(*rect_head)
+                                rat = intersection_square / head_square
+                                if rat >= 0.4 and bbox_tracked[3] > low_border :
+                                    #     was initialized in door, probably going out of office
+                                    counter.people_init[id_tracked] = 2
+                                elif rat < 0.4:
+                                    #     initialized in the corridor, mb going in
                                     counter.people_init[id_tracked] = 1
-                                counter.frame_age_counter[id_tracked] = 0
+                            else:
+                                # res is None, means that object is not in door contour
+                                counter.people_init[id_tracked] = 1
+                            counter.frame_age_counter[id_tracked] = 0
 
-                                counter.people_bbox[id_tracked] = bbox_tracked
+                            counter.people_bbox[id_tracked] = bbox_tracked
 
-                            counter.cur_bbox[id_tracked] = bbox_tracked
-                else:
-                    deepsort.increment_ages()
-                # Print time (inference + NMS)
-                t2 = torch_utils.time_synchronized()
+                        counter.cur_bbox[id_tracked] = bbox_tracked
+            else:
+                deepsort.increment_ages()
+            # Print time (inference + NMS)
+            t2 = torch_utils.time_synchronized()
 
                 # Stream results
             vals_to_del = []
