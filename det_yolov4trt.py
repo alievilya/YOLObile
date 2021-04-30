@@ -244,142 +244,143 @@ def detect(config):
                         counter.cur_bbox[id_tracked] = bbox_tracked
         else:
             deepsort.increment_ages()
-			# Print time (inference + NMS)
-			t2 = torch_utils.time_synchronized()
+            # Print time (inference + NMS)
+            t2 = torch_utils.time_synchronized()
 
-			# Stream results
-			vals_to_del = []
-			for val in counter.people_init.keys():
-				# check bbox also
-				inter = 0
-				cur_square = 0
-				ratio = 0
-				cur_c = find_centroid(counter.cur_bbox[val])
-				centroid_distance = np.sum(np.array([(door_c[i] - cur_c[i]) ** 2 for i in range(len(door_c))]))
+            # Stream results
+            vals_to_del = []
+            for val in counter.people_init.keys():
+                # check bbox also
+                inter = 0
+                cur_square = 0
+                ratio = 0
+                cur_c = find_centroid(counter.cur_bbox[val])
+                centroid_distance = np.sum(np.array([(door_c[i] - cur_c[i]) ** 2 for i in range(len(door_c))]))
 
-				# init_c = find_centroid(counter.people_bbox[val])
-				# vector_person = (cur_c[0] - init_c[0],
-				#                  cur_c[1] - init_c[1])
+                # init_c = find_centroid(counter.people_bbox[val])
+                # vector_person = (cur_c[0] - init_c[0],
+                #                  cur_c[1] - init_c[1])
 
-				rect_cur = Rectangle(counter.cur_bbox[val][0], counter.cur_bbox[val][1],
-				                     counter.cur_bbox[val][2], counter.cur_bbox[val][3])
-				inter = rect_cur & rect_door
+                rect_cur = Rectangle(counter.cur_bbox[val][0], counter.cur_bbox[val][1],
+                                     counter.cur_bbox[val][2], counter.cur_bbox[val][3])
+                inter = rect_cur & rect_door
 
-				if val in lost_ids and counter.people_init[val] != -1:
+                if val in lost_ids and counter.people_init[val] != -1:
 
-				    if inter:
-				        inter_square = rect_square(*inter)
-				        cur_square = rect_square(*rect_cur)
-				        try:
-				            ratio = inter_square / cur_square
+                    if inter:
+                        inter_square = rect_square(*inter)
+                        cur_square = rect_square(*rect_cur)
+                        try:
+                            ratio = inter_square / cur_square
 
-				        except ZeroDivisionError:
-				            ratio = 0
-				    # if vector_person < 0 then current coord is less than initialized, it means that man is going
-				    # in the exit direction
+                        except ZeroDivisionError:
+                            ratio = 0
+                    # if vector_person < 0 then current coord is less than initialized, it means that man is going
+                    # in the exit direction
 
-				    if counter.people_init[val] == 2 \
-				            and ratio < 0.4 and centroid_distance > 5000:
-				        print('ratio out: {}\n centroids: {}\n'.format(ratio, centroid_distance))
-				        counter.get_out()
-				        counter.people_init[val] = -1
-				        VideoHandler.stop_recording(action_occured="вышел из кабинета")
+                    if counter.people_init[val] == 2 \
+                            and ratio < 0.4 and centroid_distance > 5000:
+                        print('ratio out: {}\n centroids: {}\n'.format(ratio, centroid_distance))
+                        counter.get_out()
+                        counter.people_init[val] = -1
+                        VideoHandler.stop_recording(action_occured="вышел из кабинета")
 
-				        vals_to_del.append(val)
+                        vals_to_del.append(val)
 
-				    elif counter.people_init[val] == 1 \
-				            and ratio >= 0.4 and centroid_distance < 1000:
-				        print('ratio in: {}\n centroids: {}\n'.format(ratio, centroid_distance))
-				        counter.get_in()
-				        counter.people_init[val] = -1
-				        VideoHandler.stop_recording(action_occured="зашел внутрь")
-				        vals_to_del.append(val)
+                    elif counter.people_init[val] == 1 \
+                            and ratio >= 0.4 and centroid_distance < 1000:
+                        print('ratio in: {}\n centroids: {}\n'.format(ratio, centroid_distance))
+                        counter.get_in()
+                        counter.people_init[val] = -1
+                        VideoHandler.stop_recording(action_occured="зашел внутрь")
+                        vals_to_del.append(val)
 
-				    lost_ids.remove(val)
+                    lost_ids.remove(val)
 
-				# TODO maybe delete this condition
-				elif counter.frame_age_counter.get(val, 0) >= counter.max_frame_age_counter \
-				        and counter.people_init[val] == 2:
-				    if inter:
-				        inter_square = rect_square(*inter)
-				        cur_square = rect_square(*rect_cur)
-				        try:
-				            ratio = inter_square / cur_square
-				        except ZeroDivisionError:
-				            ratio = 0
+                # TODO maybe delete this condition
+                elif counter.frame_age_counter.get(val, 0) >= counter.max_frame_age_counter \
+                        and counter.people_init[val] == 2:
+                    if inter:
+                        inter_square = rect_square(*inter)
+                        cur_square = rect_square(*rect_cur)
+                        try:
+                            ratio = inter_square / cur_square
+                        except ZeroDivisionError:
+                            ratio = 0
 
-				    if ratio < 0.2 and centroid_distance > 10000:
-				        counter.get_out()
-				        print('ratio out max frames: ', ratio)
-				        counter.people_init[val] = -1
-				        VideoHandler.stop_recording(action_occured="вышел")
-				        vals_to_del.append(val)
-				    counter.age_counter[val] = 0
+                    if ratio < 0.2 and centroid_distance > 10000:
+                        counter.get_out()
+                        print('ratio out max frames: ', ratio)
+                        counter.people_init[val] = -1
+                        VideoHandler.stop_recording(action_occured="вышел")
+                        vals_to_del.append(val)
+                    counter.age_counter[val] = 0
 
-				counter.clear_lost_ids()
+                counter.clear_lost_ids()
 
-			for valtodel in vals_to_del:
-				counter.delete_person_data(track_id=valtodel)
+            for valtodel in vals_to_del:
+                counter.delete_person_data(track_id=valtodel)
 
-			ins, outs = counter.show_counter()
-			cv2.rectangle(im0, (0, 0), (250, 50),
-				          (0, 0, 0), -1, 8)
+            ins, outs = counter.show_counter()
+            cv2.rectangle(im0, (0, 0), (250, 50),
+                          (0, 0, 0), -1, 8)
 
-			cv2.rectangle(im0, (int(door_array[0]), int(door_array[1])),
-				          (int(door_array[2]), int(door_array[3])),
-				          (23, 158, 21), 3)
+            cv2.rectangle(im0, (int(door_array[0]), int(door_array[1])),
+                          (int(door_array[2]), int(door_array[3])),
+                          (23, 158, 21), 3)
 
-			cv2.rectangle(im0, (int(around_door_array[0]), int(around_door_array[1])),
-				          (int(around_door_array[2]), int(around_door_array[3])),
-				          (48, 58, 221), 3)
+            cv2.rectangle(im0, (int(around_door_array[0]), int(around_door_array[1])),
+                          (int(around_door_array[2]), int(around_door_array[3])),
+                          (48, 58, 221), 3)
 
-			cv2.putText(im0, "in: {}, out: {} ".format(ins, outs), (10, 35), 0,
-				        1e-3 * im0.shape[0], (255, 255, 255), 3)
+            cv2.putText(im0, "in: {}, out: {} ".format(ins, outs), (10, 35), 0,
+                        1e-3 * im0.shape[0], (255, 255, 255), 3)
 
-			cv2.line(im0, (door_array[0], low_border), (880, low_border), (214, 4, 54), 4)
+            cv2.line(im0, (door_array[0], low_border), (880, low_border), (214, 4, 54), 4)
 
-			if VideoHandler.stop_writing(im0):
-				# send_new_posts(video_name, action_occured)
-				sock.sendall(bytes(VideoHandler.video_name + ":" + VideoHandler.action_occured, "utf-8"))
-				data = sock.recv(100)
-				print('Received', repr(data.decode("utf-8")))
-				sent_videos.add(VideoHandler.video_name)
-				with open('data_files/logs2.txt', 'a', encoding="utf-8-sig") as wr:
-				    wr.write('video {}, man {}, centroid {} '.format(VideoHandler.video_name, VideoHandler.action_occured,
-				                                                     centroid_distance))
+            if VideoHandler.stop_writing(im0):
+                # send_new_posts(video_name, action_occured)
+                sock.sendall(bytes(VideoHandler.video_name + ":" + VideoHandler.action_occured, "utf-8"))
+                data = sock.recv(100)
+                print('Received', repr(data.decode("utf-8")))
+                sent_videos.add(VideoHandler.video_name)
+                with open('data_files/logs2.txt', 'a', encoding="utf-8-sig") as wr:
+                    wr.write(
+                        'video {}, man {}, centroid {} '.format(VideoHandler.video_name, VideoHandler.action_occured,
+                                                                centroid_distance))
 
-				VideoHandler = Writer()
-				VideoHandler.set_fps(fps)
+                VideoHandler = Writer()
+                VideoHandler.set_fps(fps)
 
-			else:
-				VideoHandler.continue_writing(im0, flag_anyone_in_door)
+            else:
+                VideoHandler.continue_writing(im0, flag_anyone_in_door)
 
-			if view_img:
-				cv2.imshow('image', im0)
-				if cv2.waitKey(1) == ord('q'):  # q to quit
-				    raise StopIteration
+            if view_img:
+                cv2.imshow('image', im0)
+                if cv2.waitKey(1) == ord('q'):  # q to quit
+                    raise StopIteration
 
-			delta_time = (time.time() - t0)
-			# t2_ds = time.time()
-			# print('%s Torch:. (%.3fs)' % (s, t2 - t1))
-			# print('Full pipe. (%.3fs)' % (t2_ds - t0_ds))
-			if len(fpeses) < 30:
-				fpeses.append(round(1 / delta_time))
-			elif len(fpeses) == 30:
-				# fps = round(np.median(np.array(fpeses)))
-				fps = np.median(np.array(fpeses))
-				# fps = 3
-				print('fps set: ', fps)
-				VideoHandler.set_fps(fps)
-				counter.set_fps(fps)
-				fpeses.append(fps)
-				motion_detection = True
-			else:
-				print('\nflag writing video: ', VideoHandler.flag_writing_video)
-				print('flag stop writing: ', VideoHandler.flag_stop_writing)
-				print('flag anyone in door: ', flag_anyone_in_door)
-				print('counter frames indoor: ', VideoHandler.counter_frames_indoor)
-			# fps = 20
+            delta_time = (time.time() - t0)
+            # t2_ds = time.time()
+            # print('%s Torch:. (%.3fs)' % (s, t2 - t1))
+            # print('Full pipe. (%.3fs)' % (t2_ds - t0_ds))
+            if len(fpeses) < 30:
+                fpeses.append(round(1 / delta_time))
+            elif len(fpeses) == 30:
+                # fps = round(np.median(np.array(fpeses)))
+                fps = np.median(np.array(fpeses))
+                # fps = 3
+                print('fps set: ', fps)
+                VideoHandler.set_fps(fps)
+                counter.set_fps(fps)
+                fpeses.append(fps)
+                motion_detection = True
+            else:
+                print('\nflag writing video: ', VideoHandler.flag_writing_video)
+                print('flag stop writing: ', VideoHandler.flag_stop_writing)
+                print('flag anyone in door: ', flag_anyone_in_door)
+                print('counter frames indoor: ', VideoHandler.counter_frames_indoor)
+        # fps = 20
 
 
 # python detect.py --cfg cfg/csdarknet53s-panet-spp.cfg --weights cfg/best14x-49.pt --source 0
