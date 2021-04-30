@@ -1,6 +1,6 @@
 {
-  "source0": "data_files/in_1.mp4",
-  "source": "rtsp://admin:admin@192.168.1.18:554/1/h264major",
+  "source": "data_files/in_1.mp4",
+  "source0": "rtsp://admin:admin@192.168.1.52:554/1/h264major",
   "weights": "weights/best14x-49.pt",
   "config_deepsort": "deep_sort_pytorch/configs/deep_sort.yaml",
   "cfg": "cfg/csdarknet53s-panet-spp.cfg",
@@ -19,7 +19,7 @@
   "view_img": "True",
   "save_txt": "False",
   "category_num": 80,
-  "model": "yolov4-288",
+  "model": "yolov4-tiny-416",
   "video_source": "None",
   "letter_box": "False"
 }
