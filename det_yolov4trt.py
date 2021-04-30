@@ -155,7 +155,6 @@ def detect(config):
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((HOST, PORT))
-<<<<<<< HEAD
         img_shape = (288, 288)
         # for frame_idx, (path, img, im0s, vid_cap) in enumerate(dataset):
         while True:
@@ -163,11 +162,6 @@ def detect(config):
             if not ret:
                 break
  
-=======
-        # for frame_idx, (path, img, im0s, vid_cap) in enumerate(dataset):
-        while True:
-            ret, im0 = cap.read()
->>>>>>> 49c0f477bc7b0a12874c617a70827c3ec9fb1d8e
             preds, confs, clss = perform_detection(frame=im0, trt_yolo=trt_yolo, conf_th=config["conf_thres"], vis=vis)
 
             flag_move = False
@@ -177,7 +171,6 @@ def detect(config):
 
             # Process detections
             lost_ids = counter.return_lost_ids()
-<<<<<<< HEAD
             for i, (det, conf, cls) in enumerate(zip( preds, confs, clss)):  
 
                 if det is not None and len(det):
@@ -191,35 +184,6 @@ def detect(config):
                     if save_img or view_img:  # Add bbox to image
                         label = '%s %.2f' % (names[int(cls)], conf)
                         plot_one_box(det, im0, label=label, color=colors[int(cls)])
-=======
-            for i, det in enumerate(preds):  # detections for image i
-                # if webcam:  # batch_size >= 1
-                #     p, s, im0 = path[i], '%g: ' % i, im0s[i].copy()
-                # else:
-                #     p, s, im0 = path, '', im0s
-                if det is not None and len(det):
-                    # Rescale boxes from imgsz to im0 size
-                    # det[:, :4] = scale_coords(img.shape[2:], det[:, :4], im0.shape).round()
-                    # Print results
-                    for c in det[:, -1].unique():
-                        if names[int(c)] not in config["needed_classes"]:
-                            continue
-                    # bbox_xywh = []
-                    # confs = []
-                    # Write results
-                    for *xyxy, conf, cls in det:
-                        #  check if bbox`s class is needed
-                        if names[int(cls)] not in config["needed_classes"]:
-                            continue
-                        # x_c, y_c, bbox_w, bbox_h = bbox_rel(*xyxy)
-                        # obj = [x_c, y_c, bbox_w, bbox_h]
-                        # bbox_xywh.append(obj)
-                        # confs.append([conf.item()])
-
-                        if save_img or view_img:  # Add bbox to image
-                            label = '%s %.2f' % (names[int(cls)], conf)
-                            plot_one_box(xyxy, im0, label=label, color=colors[int(cls)])
->>>>>>> 49c0f477bc7b0a12874c617a70827c3ec9fb1d8e
 
             detections = torch.Tensor(preds)
             confidences = torch.Tensor(confs)
@@ -228,21 +192,15 @@ def detect(config):
             if len(detections) == 0:
                 continue
             outputs = deepsort.update(detections, confidences, im0)
-<<<<<<< HEAD
             print('detections ', detections)
             print('outputs ', outputs)          
-=======
->>>>>>> 49c0f477bc7b0a12874c617a70827c3ec9fb1d8e
 
             # draw boxes for visualization
             if len(outputs) > 0:
                 bbox_xyxy = outputs[:, :4]
                 identities = outputs[:, -1]
                 draw_boxes(im0, bbox_xyxy, identities)
-<<<<<<< HEAD
                 print('bbox_xyxy ', bbox_xyxy)
-=======
->>>>>>> 49c0f477bc7b0a12874c617a70827c3ec9fb1d8e
                 counter.update_identities(identities)
 
                 for bbox_tracked, id_tracked in zip(bbox_xyxy, identities):
@@ -331,11 +289,7 @@ def detect(config):
                     # in the exit direction
 
                     if counter.people_init[val] == 2 \
-<<<<<<< HEAD
                             and ratio < 0.4 and centroid_distance > 5000:
-=======
-                            and ratio < 0.4 and centroid_distance > 5000:  # vector_person[1] > 50 and
->>>>>>> 49c0f477bc7b0a12874c617a70827c3ec9fb1d8e
                         print('ratio out: {}\n centroids: {}\n'.format(ratio, centroid_distance))
                         counter.get_out()
                         counter.people_init[val] = -1
@@ -344,11 +298,7 @@ def detect(config):
                         vals_to_del.append(val)
 
                     elif counter.people_init[val] == 1 \
-<<<<<<< HEAD
                             and ratio >= 0.4 and centroid_distance < 1000:
-=======
-                            and ratio >= 0.4 and centroid_distance < 1000:  # vector_person[1] < -50 and
->>>>>>> 49c0f477bc7b0a12874c617a70827c3ec9fb1d8e
                         print('ratio in: {}\n centroids: {}\n'.format(ratio, centroid_distance))
                         counter.get_in()
                         counter.people_init[val] = -1
@@ -368,11 +318,7 @@ def detect(config):
                         except ZeroDivisionError:
                             ratio = 0
 
-<<<<<<< HEAD
                     if ratio < 0.2 and centroid_distance > 10000:
-=======
-                    if ratio < 0.2 and centroid_distance > 10000:  # vector_person[1] > 50 and
->>>>>>> 49c0f477bc7b0a12874c617a70827c3ec9fb1d8e
                         counter.get_out()
                         print('ratio out max frames: ', ratio)
                         counter.people_init[val] = -1
@@ -431,11 +377,7 @@ def detect(config):
             elif len(fpeses) == 30:
                 # fps = round(np.median(np.array(fpeses)))
                 fps = np.median(np.array(fpeses))
-<<<<<<< HEAD
                 # fps = 3
-=======
-                # fps = 20
->>>>>>> 49c0f477bc7b0a12874c617a70827c3ec9fb1d8e
                 print('fps set: ', fps)
                 VideoHandler.set_fps(fps)
                 counter.set_fps(fps)
@@ -455,12 +397,7 @@ if __name__ == '__main__':
     # os.system("python send_video.py &")
     with open("cfg/detection_tracker_cfg.json") as detection_config:
         detect_config = json.load(detection_config)
-<<<<<<< HEAD
     print('opening source: {}'.format(detect_config["source"]))
     print('reading model: {}'.format(detect_config["model"]))
-=======
-    print(detect_config["cfg"])
-
->>>>>>> 49c0f477bc7b0a12874c617a70827c3ec9fb1d8e
     with torch.no_grad():
         detect(config=detect_config)
