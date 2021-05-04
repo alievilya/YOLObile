@@ -24,17 +24,30 @@ class DeepSort(object):
         self.tracker = Tracker(
             metric, max_iou_distance=max_iou_distance, max_age=max_age, n_init=n_init)
 
-    def update(self, bbox_xywh, confidences, ori_img):
+    def update(self, bbox_xyxy, confidences, ori_img):
         self.height, self.width = ori_img.shape[:2]
         # generate detections
+        print('xyxy: ', bbox_xyxy) 
+        bbox_tlwh = self._xyxy_to_tlwh(bbox_xyxy)
+        print('tl wh', bbox_tlwh)
+        xc = (bbox_tlwh[0] + bbox_xyxy[0][2])/2
+        yc = (bbox_tlwh[1] + bbox_xyxy[0][3])/2
+        bbox_xywh = (int(xc), int(yc), bbox_tlwh[2], bbox_tlwh[3])
+        print('confidences ', confidences)
         features = self._get_features(bbox_xywh, ori_img)
-        bbox_tlwh = self._xywh_to_tlwh(bbox_xywh)
-        detections = [Detection(bbox_tlwh[i], conf, features[i]) for i, conf in enumerate(
+        
+
+        detections = [Detection(bbox_tlwh, conf, features) for i, conf in enumerate(
             confidences) if conf > self.min_confidence]
+        
 
         # run on non-maximum supression
-        boxes = np.array([d.tlwh for d in detections])
-        scores = np.array([d.confidence for d in detections])
+        # boxes = np.array([print(d.tlwh) for d in detections])
+        boxes = np.array(detections[0].tlwh)
+        print('boxes ', boxes)
+
+        # scores = np.array([d.confidence for d in detections])
+        scores = np.array(detections[0].confidence)        
         indices = non_max_suppression(boxes, self.nms_max_overlap, scores)
         detections = [detections[i] for i in indices]
 
@@ -95,22 +108,34 @@ class DeepSort(object):
         self.tracker.increment_ages()
 
     def _xyxy_to_tlwh(self, bbox_xyxy):
-        x1, y1, x2, y2 = bbox_xyxy
+        x1, y1, x2, y2 = bbox_xyxy[0]
 
-        t = x1
-        l = y1
+        t = int(x1)
+        l = int(y1)
         w = int(x2 - x1)
         h = int(y2 - y1)
         return t, l, w, h
 
     def _get_features(self, bbox_xywh, ori_img):
         im_crops = []
-        for box in bbox_xywh:
-            x1, y1, x2, y2 = self._xywh_to_xyxy(box)
+        if len(bbox_xywh) == 4:
+            x1, y1, x2, y2 = self._xywh_to_xyxy(bbox_xywh)
             im = ori_img[y1:y2, x1:x2]
             im_crops.append(im)
-        if im_crops:
-            features = self.extractor(im_crops)
-        else:
-            features = np.array([])
+
+            if im_crops:
+                features = self.extractor(im_crops)
+            else:
+                features = np.array([])
+        elif len(bbox_xywh) != 1 and len(bbox_xywh) != 4 :
+            for box in bbox_xywh:
+                x1, y1, x2, y2 = self._xywh_to_xyxy(box)
+                im = ori_img[y1:y2, x1:x2]
+                im_crops.append(im)
+            if im_crops:
+                features = self.extractor(im_crops)
+            else:
+                features = np.array([])
+
+
         return features
