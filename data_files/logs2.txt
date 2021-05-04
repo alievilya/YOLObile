@@ -1,1 +1,1 @@
-﻿video 14 19 07.mp4, man зашел внутрь, centroid 260 
+﻿video 14 19 07.mp4, man зашел внутрь, centroid 260 video 18 34 14.mp4, man зашел внутрь, centroid 260 video 18 45 23.mp4, man зашел внутрь, centroid 29965 video 18 45 29.mp4, man вышел из кабинета, centroid 32125 

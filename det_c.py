@@ -70,7 +70,9 @@ def detect(config):
     # Eval mode
     model.to(device).eval()
     # Half precision
+    print(half)
     half = half and device.type != 'cpu'  # half precision only supported on CUDA
+    print(half)
     if half:
         model.half()
 
