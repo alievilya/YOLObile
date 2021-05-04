@@ -14,6 +14,7 @@ from utils.utils import *
 from utils.visualization import BBoxVisualization
 from utils.yolo_classes import get_cls_dict
 from utils.yolo_with_plugins import get_input_shape, TrtYOLO
+from utils.datasets import *
 
 WINDOW_NAME = 'TrtYOLODemo'
 
@@ -61,8 +62,8 @@ def run_detection():
 def xyxy_to_xywh(bbox_xyxy):
     xc = int(bbox_xyxy[0] + bbox_xyxy[2])/2
     yc = int(bbox_xyxy[1] + bbox_xyxy[3])/2
-    w = abs(bbox_xyxy[2] - bbox_xyxy[0])
-    h = abs(bbox_xyxy[3] - bbox_xyxy[1])
+    w = int(abs(bbox_xyxy[2] - bbox_xyxy[0]))
+    h = int(abs(bbox_xyxy[3] - bbox_xyxy[1]))
     return (xc, yc, w, h)
 
 def detect(config):
@@ -108,6 +109,7 @@ def detect(config):
                         max_age=cfg.DEEPSORT.MAX_AGE, n_init=cfg.DEEPSORT.N_INIT, nn_budget=cfg.DEEPSORT.NN_BUDGET,
                         use_cuda=True)
     # Initialize device, weights etc.
+    device = torch_utils.select_device(device='cpu' if ONNX_EXPORT else config["device"])
     if os.path.exists(out):
         shutil.rmtree(out)  # delete output folder
     os.makedirs(out)  # make new output folder
@@ -120,10 +122,21 @@ def detect(config):
     if not os.path.isfile('yolo/%s.trt' % config["model"]):
         raise SystemExit('ERROR: file (yolo/%s.trt) not found!' % config["model"])
 
-    cap = cv2.VideoCapture(config["source"])
-    if not cap.isOpened():
-        raise SystemExit('ERROR: failed to open the input video file!')
-    frame_width, frame_height = int(cap.get(3)), int(cap.get(4))
+    # cap = cv2.VideoCapture(config["source"])
+    # if not cap.isOpened():
+    #     raise SystemExit('ERROR: failed to open the input video file!')
+    # frame_width, frame_height = int(cap.get(3)), int(cap.get(4))
+    webcam = source == '0' or source.startswith('rtsp') or source.startswith('http') or source.endswith('.txt')
+    if webcam:
+        view_img = True
+        torch.backends.cudnn.benchmark = True  # set True to speed up constant image size inference
+        dataset = LoadStreams(source, img_size=imgsz)
+    else:
+        save_img = True
+        view_img = True
+        dataset = LoadImages(source, img_size=imgsz)
+    img = torch.zeros((3, imgsz, imgsz), device=device)  # init img
+    
 
     cls_dict = get_cls_dict(config["category_num"])
     vis = BBoxVisualization(cls_dict)
@@ -133,22 +146,29 @@ def detect(config):
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((HOST, PORT))
         img_shape = (416, 416)
-        # for frame_idx, (path, img, im0s, vid_cap) in enumerate(dataset):
-        while True:
+        for frame_idx, (path, img, im0s, vid_cap) in enumerate(dataset):
             t0 = time.time()
-            ret, im0 = cap.read()
-            if not ret:
-                break
-
-            preds, confs, clss = perform_detection(frame=im0, trt_yolo=trt_yolo, conf_th=config["conf_thres"], vis=vis)
+            # img = torch.from_numpy(img).to(device)
+            # img = img.half() if half else img.float()  # uint8 to fp16/32
+            # im0s[0] /= 255.0  # 0 - 255 to 0.0 - 1.0
+            # if img.ndimension() == 3:
+            #     img = img.unsqueeze(0)
+            # print(img.shape)
+            
 
             flag_move = False
             flag_anyone_in_door = False
             
             ratio_detection = 0
-
             # Process detections
             lost_ids = counter.return_lost_ids()
+            if webcam:  # batch_size >= 1
+                p, s, im0 = path[0], '%g: ' % 0, im0s[0].copy() #TODO mb needed in loop for detection
+            else:
+                p, s, im0 = path, '', im0s
+            
+            preds, confs, clss = perform_detection(frame=im0, trt_yolo=trt_yolo, conf_th=config["conf_thres"], vis=vis)
+
             scaled_pred = []
             scaled_conf = []
             detections = torch.Tensor()
@@ -160,16 +180,12 @@ def detect(config):
                     
                     if names[int(cls)] not in config["needed_classes"]:
                         continue
-                    # bbox_xywh = []
-                    # confs = []
                     # Write results
                     det = xyxy_to_xywh(det)
                     #det = scale_coords(img_shape, det, im0.shape)
                     scaled_pred.append(det)
                     scaled_conf.append(conf)
-                    #if save_img or view_img:  # Add bbox to image
-                        #label = '%s %.2f' % (names[int(cls)], conf)
-                        #plot_one_box(det, im0, label=label, color=colors[int(cls)])
+
 
                 detections = torch.Tensor(scaled_pred)
                 confidences = torch.Tensor(scaled_conf)
@@ -178,12 +194,8 @@ def detect(config):
 
                 # Pass detections to deepsort
             if len(detections) != 0:
-                print('detections', detections)
 
                 outputs = deepsort.update(detections, confidences, im0)
-                print('outputs', outputs)
-                #print('detections ', detections)
-                print('outputs len ', len(outputs))
 
                 # draw boxes for visualization
                 if len(outputs) > 0:
@@ -192,7 +204,6 @@ def detect(config):
 	
                     identities = outputs[:, -1]
                     draw_boxes(im0, bbox_xyxy, identities)
-                    print('bbox_xyxy ', bbox_xyxy, 'id', identities)
                     # print('bbox_xywh ', bbox_xywh, 'id', identities)
                     counter.update_identities(identities)
 
@@ -349,6 +360,8 @@ def detect(config):
                     wr.write(
                         'video {}, man {}, centroid {} '.format(VideoHandler.video_name, VideoHandler.action_occured,
                                                                 centroid_distance))
+                                                            
+                print('_________________video was sent _________________')
 
                 VideoHandler = Writer()
                 VideoHandler.set_fps(fps)
@@ -365,23 +378,27 @@ def detect(config):
             # t2_ds = time.time()
             # print('%s Torch:. (%.3fs)' % (s, t2 - t1))
             # print('Full pipe. (%.3fs)' % (t2_ds - t0_ds))
-            if len(fpeses) < 3:
+            if len(fpeses) < 15:
                 fpeses.append(round(1 / delta_time))
                 print(delta_time)
-            elif len(fpeses) == 3:
+            elif len(fpeses) == 15:
                 # fps = round(np.median(np.array(fpeses)))
                 fps = np.median(np.array(fpeses))
-                fps = 10
+                # fps = 10
                 print('fps set: ', fps)
                 VideoHandler.set_fps(fps)
                 counter.set_fps(fps)
                 fpeses.append(fps)
                 motion_detection = True
             else:
-                print('\nflag writing video: ', VideoHandler.flag_writing_video)
-                print('flag stop writing: ', VideoHandler.flag_stop_writing)
-                print('flag anyone in door: ', flag_anyone_in_door)
-                print('counter frames indoor: ', VideoHandler.counter_frames_indoor)
+                if VideoHandler.flag_writing_video:
+                    print('\nflag writing video: ') 
+                if VideoHandler.flag_stop_writing:
+                    print('flag stop writing: ') 
+                if flag_anyone_in_door:
+                    print('flag anyone in door: ') 
+                if VideoHandler.counter_frames_indoor:
+                    print('counter frames indoor: ') 
         # fps = 20
 
 

@@ -60,6 +60,7 @@ def _preprocess_yolo(img, input_shape, letter_box=False):
         preprocessed img: float32 numpy array of shape (3, H, W)
     """
     if letter_box:
+        # print(img.shape)
         img_h, img_w, _ = img.shape
         new_h, new_w = input_shape[0], input_shape[1]
         offset_h, offset_w = 0, 0
