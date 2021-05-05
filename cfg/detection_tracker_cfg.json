@@ -10,7 +10,7 @@
   "classes": "None",
   "fourcc": "mp4v",
   "conf_thres": 0.4,
-  "img_size": 416,
+  "img_size": 256,
   "iou_thres": 0.6,
   "output": "output",
   "augment": "False",
@@ -19,7 +19,8 @@
   "view_img": "True",
   "save_txt": "False",
   "category_num": 80,
-  "model": "yolov4-tiny-416",
+  "model0": "yolov4-tiny-416",
+  "model": "yolov4-csp-256",
   "video_source": "None",
   "letter_box": "False"
 }

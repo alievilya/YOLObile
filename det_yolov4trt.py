@@ -89,10 +89,10 @@ def detect(config):
     rect_around_door = Rectangle(around_door_array[0], around_door_array[1], around_door_array[2], around_door_array[3])
     # socket
     HOST = "localhost"
-    PORT = 8084
+    PORT = 8085
     # camera info
     save_img = True
-    imgsz = (416, 416) if ONNX_EXPORT else config[
+    imgsz = (256, 256) if ONNX_EXPORT else config[
         "img_size"]  # (320, 192) or (416, 256) or (608, 352) for (height, width)
     out, source, weights, half, view_img = config["output"], config["source"], config["weights"], \
                                            config["half"], config["view_img"]
@@ -128,12 +128,10 @@ def detect(config):
     # frame_width, frame_height = int(cap.get(3)), int(cap.get(4))
     webcam = source == '0' or source.startswith('rtsp') or source.startswith('http') or source.endswith('.txt')
     if webcam:
-        view_img = True
         torch.backends.cudnn.benchmark = True  # set True to speed up constant image size inference
         dataset = LoadStreams(source, img_size=imgsz)
     else:
         save_img = True
-        view_img = True
         dataset = LoadImages(source, img_size=imgsz)
     img = torch.zeros((3, imgsz, imgsz), device=device)  # init img
     
@@ -145,7 +143,7 @@ def detect(config):
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((HOST, PORT))
-        img_shape = (416, 416)
+        img_shape = (256, 256)
         for frame_idx, (path, img, im0s, vid_cap) in enumerate(dataset):
             t0 = time.time()
             # img = torch.from_numpy(img).to(device)
@@ -186,11 +184,8 @@ def detect(config):
                     scaled_pred.append(det)
                     scaled_conf.append(conf)
 
-
                 detections = torch.Tensor(scaled_pred)
                 confidences = torch.Tensor(scaled_conf)
-                # print('detections ', detections)
-                # print('confidences ', confidences)
 
                 # Pass detections to deepsort
             if len(detections) != 0:
@@ -230,9 +225,6 @@ def detect(config):
                             VideoHandler.continue_opened_video(id=id_tracked, seconds=3)
                             flag_anyone_in_door = True
 
-                        # elif ratio_detection > 0.6 and counter.people_init.get(id_tracked) == 1:
-                        #     VideoHandler.continue_opened_video(id=id_tracked, seconds=0.005)
-
                         if id_tracked not in counter.people_init or counter.people_init[id_tracked] == 0:
                             counter.obj_initialized(id_tracked)
                             rect_head = Rectangle(bbox_tracked[0], bbox_tracked[1], bbox_tracked[2],
@@ -242,10 +234,10 @@ def detect(config):
                                 intersection_square = rect_square(*intersection)
                                 head_square = rect_square(*rect_head)
                                 rat = intersection_square / head_square
-                                if rat >= 0.4 and bbox_tracked[3] > low_border:
+                                if rat >= 0.3 and bbox_tracked[3] > low_border:
                                     #     was initialized in door, probably going out of office
                                     counter.people_init[id_tracked] = 2
-                                elif rat < 0.4:
+                                elif rat < 0.3:
                                     #     initialized in the corridor, mb going in
                                     counter.people_init[id_tracked] = 1
                             else:
@@ -368,9 +360,9 @@ def detect(config):
 
             else:
                 VideoHandler.continue_writing(im0, flag_anyone_in_door)
-
-            if view_img:
+            if view_img is True:
                 cv2.imshow('image', im0)
+                cv2.waitKey(1)
                 if cv2.waitKey(1) == ord('q'):  # q to quit
                     raise StopIteration
 
@@ -392,13 +384,13 @@ def detect(config):
                 motion_detection = True
             else:
                 if VideoHandler.flag_writing_video:
-                    print('\nflag writing video: ') 
+                    print('\writing video ') 
                 if VideoHandler.flag_stop_writing:
-                    print('flag stop writing: ') 
+                    print('stop writing') 
                 if flag_anyone_in_door:
-                    print('flag anyone in door: ') 
+                    print('anyone in door') 
                 if VideoHandler.counter_frames_indoor:
-                    print('counter frames indoor: ') 
+                    print('counter frames indoor: {}'.format(VideoHandler.counter_frames_indoor)) 
         # fps = 20
 
 
