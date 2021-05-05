@@ -12,7 +12,7 @@ import socket
 import telebot
 
 HOST = "localhost"
-PORT = 8084
+PORT = 8085
 
 token = "1780388562:AAEzyzS9YRCPQF6rME6A9U4lWArR6QDDYYM"
 bot = telebot.TeleBot(token)
@@ -29,9 +29,7 @@ def send_new_posts(videoname, actionname):
     #                  format(actionname, video_time[0], video_time[1], video_time[2]))
     # bot.send_document(chat_id=channel, data=video, caption=text_caption, timeout=50)
     bot.send_video(chat_id=channel, data=video, caption=text_caption, timeout=50)
-    # bot.send_message(channel, "короче я домой)) оставлю запущенным пока")
-    # Спим секунду, чтобы избежать разного рода ошибок и ограничений (на всякий случай!)
-    # time.sleep(1)
+
     return
 
 
