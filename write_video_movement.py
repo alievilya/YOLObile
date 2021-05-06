@@ -165,7 +165,7 @@ if __name__ == "__main__":
     with open("cfg/motion_detection_cfg.json") as config_file:
         config = json.load(config_file)
 
-    Motion = [MoveDetector() for _ in range(1)]
+    Motion = [MoveDetector() for _ in range(10)]
     # link ="rtsp://admin:admin@192.168.1.18:554/1/h264major"
     link = config["source"]
     print('opening link: ', link)
