@@ -12,7 +12,7 @@ import socket
 import telebot
 
 HOST = "localhost"
-PORT = 8084
+PORT = 8083
 
 token = "1780388562:AAEzyzS9YRCPQF6rME6A9U4lWArR6QDDYYM"
 bot = telebot.TeleBot(token)
