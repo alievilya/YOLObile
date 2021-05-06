@@ -4,7 +4,8 @@ from deep_sort_pytorch.deep_sort import DeepSort
 from deep_sort_pytorch.utils.parser import get_config
 from models import *  # set ONNX_EXPORT in models.py
 from tracking_modules import Counter, Writer
-from tracking_modules import find_centroid, Rectangle, rect_square, bbox_rel, draw_boxes, select_object
+from tracking_modules import find_centroid, Rectangle, bbox_rel, draw_boxes, select_object, \
+    find_ratio_ofbboxes
 from utils.datasets import *
 from utils.utils import *
 
@@ -89,23 +90,7 @@ def detect(config):
             flag_move = False
             flag_anyone_in_door = False
 
-            # if motion_detection:
-            #
-            #     if webcam:  # batch_size >= 1
-            #         p, s, im0 = path[0], '%g: ' % i, im0s[0].copy()
-            #     else:
-            #         p, s, im0 = path, '', im0s
-            #
-            #     flag_move = MoveDetector.find_motion(im0)
-            #
-            # #  TODO motion detection instead of yolo
-            # if flag_move:
-            #     print("flag_move = True")
-            # else:
-            #     continue
-
             t0_ds = time.time()
-            ratio_detection = 0
             img = torch.from_numpy(img).to(device)
             img = img.half() if half else img.float()  # uint8 to fp16/32
             img /= 255.0  # 0 - 255 to 0.0 - 1.0
@@ -181,24 +166,15 @@ def detect(config):
 
                     for bbox_tracked, id_tracked in zip(bbox_xyxy, identities):
 
-                        rect_detection = Rectangle(bbox_tracked[0], bbox_tracked[1],
-                                                   bbox_tracked[2], bbox_tracked[3])
-                        inter_detection = rect_detection & rect_around_door
-                        if inter_detection:
-                            inter_square_detection = rect_square(*inter_detection)
-                            cur_square_detection = rect_square(*rect_detection)
-                            try:
-                                ratio_detection = inter_square_detection / cur_square_detection
-                            except ZeroDivisionError:
-                                ratio_detection = 0
-                            #  чел первый раз в контуре двери
-                        if ratio_detection > 0.2:
+                        ratio_initial = find_ratio_ofbboxes(bbox=bbox_tracked, rect_compare=rect_around_door)
+                        #  чел первый раз в контуре двери
+                        if ratio_initial > 0.2:
                             if VideoHandler.counter_frames_indoor == 0:
                                 #     флаг о начале записи
                                 VideoHandler.start_video(id_tracked)
                             flag_anyone_in_door = True
 
-                        elif ratio_detection > 0.2 and id_tracked not in VideoHandler.id_inside_door_detected:
+                        elif ratio_initial > 0.2 and id_tracked not in VideoHandler.id_inside_door_detected:
                             VideoHandler.continue_opened_video(id=id_tracked, seconds=3)
                             flag_anyone_in_door = True
 
@@ -207,19 +183,12 @@ def detect(config):
 
                         if id_tracked not in counter.people_init or counter.people_init[id_tracked] == 0:
                             counter.obj_initialized(id_tracked)
-                            rect_head = Rectangle(bbox_tracked[0], bbox_tracked[1], bbox_tracked[2],
-                                                  bbox_tracked[3])
-                            intersection = rect_head & rect_door
-                            if intersection:
-                                intersection_square = rect_square(*intersection)
-                                head_square = rect_square(*rect_head)
-                                rat = intersection_square / head_square
-                                if rat >= 0.4 and bbox_tracked[3] > low_border:
-                                    #     was initialized in door, probably going out of office
-                                    counter.people_init[id_tracked] = 2
-                                elif rat < 0.4:
-                                    #     initialized in the corridor, mb going in
-                                    counter.people_init[id_tracked] = 1
+                            if ratio_initial >= 0.4 and bbox_tracked[3] > low_border:
+                                #     was initialized in door, probably going out of office
+                                counter.people_init[id_tracked] = 2
+                            elif ratio_initial < 0.4:
+                                #     initialized in the corridor, mb going in
+                                counter.people_init[id_tracked] = 1
                             else:
                                 # res is None, means that object is not in door contour
                                 counter.people_init[id_tracked] = 1
@@ -240,9 +209,6 @@ def detect(config):
             vals_to_del = []
             for val in counter.people_init.keys():
                 # check bbox also
-                inter = 0
-                cur_square = 0
-                ratio = 0
                 cur_c = find_centroid(counter.cur_bbox[val])
                 centroid_distance = np.sum(np.array([(door_c[i] - cur_c[i]) ** 2 for i in range(len(door_c))]))
 
@@ -250,23 +216,11 @@ def detect(config):
                 # vector_person = (cur_c[0] - init_c[0],
                 #                  cur_c[1] - init_c[1])
 
-                rect_cur = Rectangle(counter.cur_bbox[val][0], counter.cur_bbox[val][1],
-                                     counter.cur_bbox[val][2], counter.cur_bbox[val][3])
-                inter = rect_cur & rect_door
+                ratio = find_ratio_ofbboxes(bbox=counter.cur_bbox[val], rect_compare=rect_door)
 
                 if val in lost_ids and counter.people_init[val] != -1:
-
-                    if inter:
-                        inter_square = rect_square(*inter)
-                        cur_square = rect_square(*rect_cur)
-                        try:
-                            ratio = inter_square / cur_square
-
-                        except ZeroDivisionError:
-                            ratio = 0
                     # if vector_person < 0 then current coord is less than initialized, it means that man is going
                     # in the exit direction
-
                     if counter.people_init[val] == 2 \
                             and ratio < 0.4 and centroid_distance > 5000:  # vector_person[1] > 50 and
                         print('ratio out: {}\n centroids: {}\n'.format(ratio, centroid_distance))
@@ -289,13 +243,6 @@ def detect(config):
                 # TODO maybe delete this condition
                 elif counter.frame_age_counter.get(val, 0) >= counter.max_frame_age_counter \
                         and counter.people_init[val] == 2:
-                    if inter:
-                        inter_square = rect_square(*inter)
-                        cur_square = rect_square(*rect_cur)
-                        try:
-                            ratio = inter_square / cur_square
-                        except ZeroDivisionError:
-                            ratio = 0
 
                     if ratio < 0.2 and centroid_distance > 10000:  # vector_person[1] > 50 and
                         counter.get_out()

@@ -11,15 +11,19 @@ motion!
 Run the script with a working webcam! You'll see how it works!
 """
 
-import imutils
-import cv2
-import numpy as np
 import json
+from time import gmtime
+from time import strftime
+
+import cv2
+import imutils
+
+from tracking_modules import Rectangle, find_ratio_ofbboxes
+
 
 # =============================================================================
 # USER-SET PARAMETERS
 # =============================================================================
-
 
 
 # =============================================================================
@@ -34,18 +38,58 @@ import json
 class MoveDetector():
     def __init__(self):
         # Init frame variables
+        # self.door_array = [611, 70, 663, 310]
+        # self.around_door_array = [507, 24, 724, 374]
+        # self.around_door_array = [403, 205, 535, 373]
+        self.around_door_array = [344, 28, 787, 523]  # in1
+        self.rect_around_door = Rectangle(self.around_door_array[0], self.around_door_array[1],
+                                          self.around_door_array[2], self.around_door_array[3])
         self.first_frame = None
         self.next_frame = None
         self.font = cv2.FONT_HERSHEY_SIMPLEX
         self.delay_counter = 0
         self.movement_persistent_counter = 0
+        self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+        self.fps = 20
+        self.output_video = None
 
     def set_init(self, cap):
         self.transient_movement_flag = False
+        self.stop_writing = False
         # Read frame
         self.ret, self.frame = cap.read()
         self.text = "Unoccupied"
+        return self.ret
 
+    def start_video(self, frame, output_name):
+        if self.output_video is None:
+            self.output_video = cv2.VideoWriter(output_name, self.fourcc, self.fps, (frame.shape[1], frame.shape[0]))
+            print('started')
+
+    def write_video(self, frame):
+        if self.output_video:
+            if self.output_video.isOpened():
+                self.output_video.write(frame)
+                print('writing')
+
+    def release_video(self, frame):
+        if self.output_video:
+            if self.output_video.isOpened():
+                self.output_video.write(frame)
+                self.output_video.release()
+                print('released')
+
+    def move_near_door(self, contours):
+        if len(contours) > 0:
+            for contour in contours:
+                # bbox = contour[0] + contour[1]
+                ratio_contour = find_ratio_ofbboxes(contour, rect_compare=self.rect_around_door)
+                if ratio_contour > 0.2:
+                    return True
+                else:
+                    return False
+        else:
+            return False
 
     def detect_movement(self, config):
 
@@ -58,7 +102,7 @@ class MoveDetector():
         self.frame = imutils.resize(self.frame, width=750)
         self.gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
         # Blur it to remove camera noise (reducing false positives)
-        self.gray = cv2.GaussianBlur(self.gray, (13, 13), 0)
+        self.gray = cv2.GaussianBlur(self.gray, (17, 17), 0)
         # If the first frame is nothing, initialise it
         if self.first_frame is None: self.first_frame = self.gray
         self.delay_counter += 1
@@ -76,24 +120,26 @@ class MoveDetector():
         # Compare the two frames, find the difference
         frame_delta = cv2.absdiff(self.first_frame, self.next_frame)
         thresh = cv2.threshold(frame_delta, 20, 255, cv2.THRESH_BINARY)[1]
-
         # Fill in holes via dilate(), and find contours of the thesholds
         thresh = cv2.dilate(thresh, None, iterations=4)
         cnts, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
         # loop over the contours
+        moving_cnts = []
         for c in cnts:
-
             # Save the coordinates of all found contours
             (x, y, w, h) = cv2.boundingRect(c)
-
             # If the contour is too small, ignore it, otherwise, there's transient
             # movement
             if cv2.contourArea(c) > config["MIN_SIZE_FOR_MOVEMENT"]:
                 self.transient_movement_flag = True
-
                 # Draw a rectangle around big enough movements
-                cv2.rectangle(self.frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+                top_coords = (x, y)
+                bot_coords = (x + w, y + h)
+                if config["draw_rect"]:
+                    cv2.rectangle(self.frame, top_coords, bot_coords, (0, 255, 0), 2)
+                coords = top_coords + bot_coords
+                moving_cnts.append(coords)
 
         # The moment something moves momentarily, reset the persistent
         # movement timer.
@@ -107,37 +153,53 @@ class MoveDetector():
 
         else:
             text = "No Movement Detected"
+            self.stop_writing = True
+            return self.frame, []
 
         cv2.putText(self.frame, str(text), (10, 35), self.font, 0.75, (255, 255, 255), 2, cv2.LINE_AA)
 
         frame_delta = cv2.cvtColor(frame_delta, cv2.COLOR_GRAY2BGR)
-        return self.frame
+        return self.frame, moving_cnts
 
 
 if __name__ == "__main__":
     with open("cfg/motion_detection_cfg.json") as config_file:
         config = json.load(config_file)
 
-    Motion = [MoveDetector() for _ in range(60)]
+    Motion = [MoveDetector() for _ in range(1)]
     # link ="rtsp://admin:admin@192.168.1.18:554/1/h264major"
     link = config["source"]
     print('opening link: ', link)
     cap = cv2.VideoCapture(link)  # Then start the webcam
+    ret = True
     # LOOP!
     while True:
         for i in range(len(Motion)):
-            Motion[i].set_init(cap=cap)
-            frame = Motion[i].detect_movement(config=config)
+            ret = Motion[i].set_init(cap=cap)
+            if not ret:
+                break
+            frame, contours = Motion[i].detect_movement(config=config)
+
             # Splice the two video frames together to make one long horizontal one
             # cv2.imshow("frame", np.hstack((frame_delta, frame)))
             cv2.imshow("frame {}".format(i), frame)
+            if Motion[i].move_near_door(contours):
+                hour_greenvich = strftime("%H", gmtime())
+                hour_moscow = f'{i}_' + str(int(hour_greenvich) + 3)
+                video_name = hour_moscow + strftime("_%M_%S", gmtime()) + '.mp4'
+                output_name = 'data_files/movement/' + video_name
+                Motion[i].start_video(frame, output_name)
+            Motion[i].write_video(frame)
+            if Motion[i].stop_writing:
+                Motion[i].release_video(frame)
 
             # Interrupt trigger by pressing q to quit the open CV program
             ch = cv2.waitKey(3)
             if ch & 0xFF == ord('q'):
                 break
+        if not ret:
+            break
 
     # Cleanup when closed
-    #     cv2.waitKey(0)
-    #     cv2.destroyAllWindows()
-    #     cap.release()
+    cv2.destroyAllWindows()
+    cap.release()
