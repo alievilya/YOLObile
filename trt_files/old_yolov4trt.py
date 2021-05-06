@@ -66,7 +66,7 @@ def perform_detection(frame, trt_yolo, conf_th, vis):
 
 def run_detection():
     # args = parse_args()
-    with open("cfg/detection_tracker_cfg.json") as detection_config:
+    with open("../cfg/detection_tracker_cfg.json") as detection_config:
         detect_config = json.load(detection_config)
 
     if detect_config["category_num"] <= 0:
@@ -354,7 +354,7 @@ def detect(config):
                 data = sock.recv(100)
                 print('Received', repr(data.decode("utf-8")))
                 sent_videos.add(VideoHandler.video_name)
-                with open('data_files/logs2.txt', 'a', encoding="utf-8-sig") as wr:
+                with open('../data_files/logs2.txt', 'a', encoding="utf-8-sig") as wr:
                     wr.write('video {}, man {}, centroid {} '.format(VideoHandler.video_name, VideoHandler.action_occured, centroid_distance))
 
                 VideoHandler = Writer()
@@ -395,7 +395,7 @@ import json
 if __name__ == '__main__':
     # subprocess.run("python send_video.py", shell=True)
     # os.system("python send_video.py &")
-    with open("cfg/detection_tracker_cfg.json") as detection_config:
+    with open("../cfg/detection_tracker_cfg.json") as detection_config:
         detect_config = json.load(detection_config)
     print('opening source: {}'.format(detect_config["source"]))
     print('reading model: {}'.format(detect_config["model"]))

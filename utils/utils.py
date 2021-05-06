@@ -131,18 +131,16 @@ def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
         gain = ratio_pad[0][0]
         pad = ratio_pad[1]
 
-    #coords[:, [0, 2]] -= pad[0]  # x padding
-    #coords[:, [1, 3]] -= pad[1]  # y padding
-    #coords[:, :4] /= gain
+    coords[:, [0, 2]] -= pad[0]  # x padding
+    coords[:, [1, 3]] -= pad[1]  # y padding
+    coords[:, :4] /= gain
 
-    coords[0] -= pad[0]  # x padding
-    coords[2] -= pad[0]  # x padding
-    coords[1] -= pad[1]  # y padding
-    coords[3] -= pad[1]  # y padding
+    # coords[0] -= pad[0]  # x padding
+    # coords[2] -= pad[0]  # x padding
+    # coords[1] -= pad[1]  # y padding
+    # coords[3] -= pad[1]  # y padding
+    # coords = [int(el/gain) for el in coords]
     #print(coords, '\n gain: ', gain)
-    coords = [int(el/gain) for el in coords]
-    #print(coords)
-    #coords /= gain
 
     boxes = clip_coords(coords, img0_shape)
     return boxes
@@ -150,15 +148,15 @@ def scale_coords(img1_shape, coords, img0_shape, ratio_pad=None):
 
 def clip_coords(boxes, img_shape):
     # Clip bounding xyxy bounding boxes to image shape (height, width)
-    #boxes[0].clamp_(0, img_shape[1])  # x1
-    #boxes[1].clamp_(0, img_shape[0])  # y1
-    #boxes[2].clamp_(0, img_shape[1])  # x2
-    #boxes[3].clamp_(0, img_shape[0])  # y2
+    boxes[:, 0].clamp_(0, img_shape[1])  # x1
+    boxes[:, 1].clamp_(0, img_shape[0])  # y1
+    boxes[:, 2].clamp_(0, img_shape[1])  # x2
+    boxes[:, 3].clamp_(0, img_shape[0])  # y2
 
-    boxes[0] = min(boxes[0], max(0, img_shape[1]))  # x1
-    boxes[1] = min(boxes[1], max(0, img_shape[0]))  # y1
-    boxes[2] = min(boxes[2], max(0, img_shape[1])) # x2
-    boxes[3] = min(boxes[3], max(0, img_shape[0])) # y2
+    # boxes[0] = min(boxes[0], max(0, img_shape[1]))  # x1
+    # boxes[1] = min(boxes[1], max(0, img_shape[0]))  # y1
+    # boxes[2] = min(boxes[2], max(0, img_shape[1])) # x2
+    # boxes[3] = min(boxes[3], max(0, img_shape[0])) # y2
     return boxes
 
 def ap_per_class(tp, conf, pred_cls, target_cls):
