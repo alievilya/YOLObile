@@ -201,10 +201,10 @@ if __name__ == "__main__":
             if ch & 0xFF == ord('q'):
                 break
         delta_time = (time.time() - t0)
-        if len(fpeses) < 55:
+        if len(fpeses) < 35:
             fpeses.append(round(1 / delta_time))
             print(delta_time)
-        elif len(fpeses) == 55:
+        elif len(fpeses) == 35:
             # fps = round(np.median(np.array(fpeses)))
             median_fps = float(np.median(np.array(fpeses)))
             fps = round(median_fps, 2)
