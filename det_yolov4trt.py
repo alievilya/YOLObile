@@ -100,7 +100,7 @@ def detect(config):
     cfg = get_config()
     cfg.merge_from_file(config["config_deepsort"])
     # initial objects of classes
-    counter = Counter(counter_in=0, counter_out=0, track_id=0)
+    counter = Counter()
     VideoHandler = Writer()
     deepsort = DeepSort(cfg.DEEPSORT.REID_CKPT,
                         max_dist=cfg.DEEPSORT.MAX_DIST, min_confidence=cfg.DEEPSORT.MIN_CONFIDENCE,
@@ -358,8 +358,8 @@ def detect(config):
                 print(delta_time)
             elif len(fpeses) == 15:
                 # fps = round(np.median(np.array(fpeses)))
-                fps = np.median(np.array(fpeses))
-                fps = 20
+                median_fps = float(np.median(np.array(fpeses)))
+                fps = round(median_fps, 2)
                 print('fps set: ', fps)
                 VideoHandler.set_fps(fps)
                 counter.set_fps(fps)
