@@ -1,10 +1,15 @@
 import socket
+import pycuda.autoinit  # This is needed for initializing CUDA driver
+import cv2
+import os
+import time
+import argparse
 
 from deep_sort_pytorch.deep_sort import DeepSort
 from deep_sort_pytorch.utils.parser import get_config
 from models import *  # set ONNX_EXPORT in models.py
 from tracking_modules import Counter, Writer
-from tracking_modules import find_centroid, Rectangle, draw_boxes, find_ratio_ofbboxes
+from tracking_modules import find_centroid, Rectangle, draw_boxes, find_ratio_ofbboxes, rect_square
 from utils.datasets import *
 from utils.utils import *
 from utils.visualization import BBoxVisualization
