@@ -35,7 +35,7 @@ def detect(config):
     cfg = get_config()
     cfg.merge_from_file(config["config_deepsort"])
     # initial objects of classes
-    counter = Counter(counter_in=0, counter_out=0, track_id=0)
+    counter = Counter()
     VideoHandler = Writer()
     deepsort = DeepSort(cfg.DEEPSORT.REID_CKPT,
                         max_dist=cfg.DEEPSORT.MAX_DIST, min_confidence=cfg.DEEPSORT.MIN_CONFIDENCE,
@@ -171,6 +171,7 @@ def detect(config):
             #     continue
             if len(detections) != 0:
                 outputs_tracked = deepsort.update(detections, confidences, im0)
+                counter.someone_inframe()
                 # draw boxes for visualization
                 if len(outputs_tracked) > 0:
                     bbox_xyxy = outputs_tracked[:, :4]
@@ -229,6 +230,9 @@ def detect(config):
                         counter.cur_bbox[id_tracked] = bbox_tracked
             else:
                 deepsort.increment_ages()
+                if counter.need_to_clear():
+                    counter.clear_all()
+
             # Print time (inference + NMS)
             t2 = torch_utils.time_synchronized()
 
@@ -350,10 +354,11 @@ def detect(config):
             # print('%s Torch:. (%.3fs)' % (s, t2 - t1))
             # print('Full pipe. (%.3fs)' % (t2_ds - t0_ds))
             if len(fpeses) < 30:
-                fpeses.append(round(1 / delta_time))
+                fpeses.append(1 / delta_time)
             elif len(fpeses) == 30:
                 # fps = round(np.median(np.array(fpeses)))
-                fps = np.median(np.array(fpeses))
+                median_fps = float(np.median(np.array(fpeses)))
+                fps = round(median_fps, 2)
                 # fps = 20
                 print('fps set: ', fps)
                 VideoHandler.set_fps(fps)

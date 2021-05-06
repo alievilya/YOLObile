@@ -28,7 +28,8 @@ def get_truth(video_name):
 
 
 class Counter:
-    def __init__(self, counter_in, counter_out, track_id):
+    def __init__(self):
+        self.frames_without_moves = 0
         self.fps = 20
         self.max_frame_age_counter = self.fps * 5  # TODO check
         self.max_age_counter = self.fps * 1
@@ -43,9 +44,9 @@ class Counter:
         self.lost_ids = set()
 
         # self.dissappeared_frames = OrderedDict()
-        self.counter_in = counter_in
-        self.counter_out = counter_out
-        self.track_id = track_id
+        self.counter_in = 0
+        self.counter_out = 0
+        self.track_id = 0
 
     def obj_initialized(self, track_id):
         self.people_init[track_id] = 0
@@ -54,6 +55,25 @@ class Counter:
         del self.people_init[track_id]
         del self.people_bbox[track_id]
         del self.frame_age_counter[track_id]
+
+
+    def clear_all(self):
+        self.people_init = OrderedDict()
+        self.people_bbox = OrderedDict()
+        self.cur_bbox = OrderedDict()
+        self.rat_init = OrderedDict()
+        self.age_counter = OrderedDict()
+        self.frame_age_counter = OrderedDict()
+        self.lost_ids = set()
+
+    def need_to_clear(self):
+        self.frames_without_moves += 1
+        if self.frames_without_moves >= self.fps*60 and len(self.people_init.keys()) > 0:
+            self.frames_without_moves = 0
+            return True
+
+    def someone_inframe(self):
+        self.frames_without_moves = 0
 
     def cur_bbox_initialized(self):
         self.cur_bbox = OrderedDict()
