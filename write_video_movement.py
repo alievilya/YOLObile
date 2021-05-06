@@ -12,10 +12,12 @@ Run the script with a working webcam! You'll see how it works!
 """
 
 import json
-from time import gmtime
-from time import strftime
+import time
+from time import gmtime, strftime
 
 import cv2
+import numpy as np
+
 import imutils
 
 from tracking_modules import Rectangle, find_ratio_ofbboxes
@@ -41,7 +43,8 @@ class MoveDetector():
         # self.door_array = [611, 70, 663, 310]
         # self.around_door_array = [507, 24, 724, 374]
         # self.around_door_array = [403, 205, 535, 373]
-        self.around_door_array = [344, 28, 787, 523]  # in1
+        # self.around_door_array = [344, 28, 787, 523]  # in1
+        self.around_door_array = [507, 24, 724, 374]  # in1
         self.rect_around_door = Rectangle(self.around_door_array[0], self.around_door_array[1],
                                           self.around_door_array[2], self.around_door_array[3])
         self.first_frame = None
@@ -70,7 +73,6 @@ class MoveDetector():
         if self.output_video:
             if self.output_video.isOpened():
                 self.output_video.write(frame)
-                print('writing')
 
     def release_video(self, frame):
         if self.output_video:
@@ -113,14 +115,11 @@ class MoveDetector():
         if self.delay_counter > config["FRAMES_TO_PERSIST"]:
             delay_counter = 0
             self.first_frame = self.next_frame
-
         # Set the next frame to compare (the current frame)
         self.next_frame = self.gray
-
         # Compare the two frames, find the difference
         frame_delta = cv2.absdiff(self.first_frame, self.next_frame)
         thresh = cv2.threshold(frame_delta, 20, 255, cv2.THRESH_BINARY)[1]
-        # Fill in holes via dilate(), and find contours of the thesholds
         thresh = cv2.dilate(thresh, None, iterations=4)
         cnts, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -173,8 +172,11 @@ if __name__ == "__main__":
     cap = cv2.VideoCapture(link)  # Then start the webcam
     ret = True
     # LOOP!
+    fpeses = []
     while True:
+        t0 = time.time()
         for i in range(len(Motion)):
+
             ret = Motion[i].set_init(cap=cap)
             if not ret:
                 break
@@ -182,6 +184,7 @@ if __name__ == "__main__":
 
             # Splice the two video frames together to make one long horizontal one
             # cv2.imshow("frame", np.hstack((frame_delta, frame)))
+
             cv2.imshow("frame {}".format(i), frame)
             if Motion[i].move_near_door(contours):
                 hour_greenvich = strftime("%H", gmtime())
@@ -197,6 +200,17 @@ if __name__ == "__main__":
             ch = cv2.waitKey(3)
             if ch & 0xFF == ord('q'):
                 break
+        delta_time = (time.time() - t0)
+        if len(fpeses) < 55:
+            fpeses.append(round(1 / delta_time))
+            print(delta_time)
+        elif len(fpeses) == 55:
+            # fps = round(np.median(np.array(fpeses)))
+            median_fps = float(np.median(np.array(fpeses)))
+            fps = round(median_fps, 2)
+            print('fps set: ', fps)
+            fpeses.append(fps)
+
         if not ret:
             break
 

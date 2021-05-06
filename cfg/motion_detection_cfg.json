@@ -4,6 +4,6 @@
   "FRAMES_TO_PERSIST" : 15,
   "MIN_SIZE_FOR_MOVEMENT" : 700,
   "MOVEMENT_DETECTED_PERSISTENCE" : 100,
-  "draw_rect" : "True"
+  "draw_rect" : "False"
 
 }
