@@ -11,22 +11,13 @@ from utils.utils import *
 
 def detect(config):
     sent_videos = set()
-    video_name = ""
     fpeses = []
     fps = 0
 
-    # door_array = select_object()
-    # door_array = [475, 69, 557, 258]
     global flag, vid_writer, lost_ids
-    # initial parameters
-    # door_array = [528, 21, 581, 315]
-    # door_array = [596, 76, 650, 295]  #  18 stream
     door_array = [611, 70, 663, 310]
-    # around_door_array = [572, 79, 694, 306]  #
-    # around_door_array = [470, 34, 722, 391]
     around_door_array = [507, 24, 724, 374]
     low_border = 225
-    #
     door_c = find_centroid(door_array)
     rect_door = Rectangle(door_array[0], door_array[1], door_array[2], door_array[3])
     rect_around_door = Rectangle(around_door_array[0], around_door_array[1], around_door_array[2], around_door_array[3])
@@ -113,7 +104,6 @@ def detect(config):
             # else:
             #     continue
 
-
             t0_ds = time.time()
             ratio_detection = 0
             img = torch.from_numpy(img).to(device)
@@ -181,7 +171,7 @@ def detect(config):
             #     continue
             if len(detections) != 0:
                 outputs_tracked = deepsort.update(detections, confidences, im0)
-            # draw boxes for visualization
+                # draw boxes for visualization
                 if len(outputs_tracked) > 0:
                     bbox_xyxy = outputs_tracked[:, :4]
                     identities = outputs_tracked[:, -1]
@@ -223,7 +213,7 @@ def detect(config):
                                 intersection_square = rect_square(*intersection)
                                 head_square = rect_square(*rect_head)
                                 rat = intersection_square / head_square
-                                if rat >= 0.4 and bbox_tracked[3] > low_border :
+                                if rat >= 0.4 and bbox_tracked[3] > low_border:
                                     #     was initialized in door, probably going out of office
                                     counter.people_init[id_tracked] = 2
                                 elif rat < 0.4:
@@ -242,7 +232,7 @@ def detect(config):
             # Print time (inference + NMS)
             t2 = torch_utils.time_synchronized()
 
-                # Stream results
+            # Stream results
             vals_to_del = []
             for val in counter.people_init.keys():
                 # check bbox also
@@ -340,7 +330,9 @@ def detect(config):
                 print('Received', repr(data.decode("utf-8")))
                 sent_videos.add(VideoHandler.video_name)
                 with open('data_files/logs2.txt', 'a', encoding="utf-8-sig") as wr:
-                    wr.write('video {}, man {}, centroid {} '.format(VideoHandler.video_name, VideoHandler.action_occured, centroid_distance))
+                    wr.write(
+                        'video {}, man {}, centroid {} '.format(VideoHandler.video_name, VideoHandler.action_occured,
+                                                                centroid_distance))
 
                 VideoHandler = Writer()
                 VideoHandler.set_fps(fps)
@@ -357,7 +349,7 @@ def detect(config):
             # t2_ds = time.time()
             # print('%s Torch:. (%.3fs)' % (s, t2 - t1))
             # print('Full pipe. (%.3fs)' % (t2_ds - t0_ds))
-            if len (fpeses) < 30:
+            if len(fpeses) < 30:
                 fpeses.append(round(1 / delta_time))
             elif len(fpeses) == 30:
                 # fps = round(np.median(np.array(fpeses)))
@@ -374,6 +366,8 @@ def detect(config):
                 print('flag anyone in door: ', flag_anyone_in_door)
                 print('counter frames indoor: ', VideoHandler.counter_frames_indoor)
             # fps = 20
+
+
 # python detect.py --cfg cfg/csdarknet53s-panet-spp.cfg --weights cfg/best14x-49.pt --source 0
 import json
 

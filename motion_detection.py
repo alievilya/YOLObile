@@ -45,7 +45,7 @@ FRAMES_TO_PERSIST = 10
 
 # Minimum boxed area for a detected motion to count as actual motion
 # Use to filter out noise or small objects
-MIN_SIZE_FOR_MOVEMENT = 1400
+MIN_SIZE_FOR_MOVEMENT = 500
 
 # Minimum length of time where no motion is detected it should take
 # (in program cycles) for the program to declare that there is no movement
@@ -61,7 +61,7 @@ MOVEMENT_DETECTED_PERSISTENCE = 100
 # cap.release()
 
 
-link ="rtsp://admin:admin@192.168.1.18:554/1/h264major"
+link ="rtsp://admin:admin@192.168.1.52:554/1/h264major"
 # link ="data_files/in_1.mp4"
 cap = cv2.VideoCapture(link)  # Then start the webcam
 

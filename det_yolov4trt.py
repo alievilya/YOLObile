@@ -146,13 +146,6 @@ def detect(config):
         img_shape = (256, 256)
         for frame_idx, (path, img, im0s, vid_cap) in enumerate(dataset):
             t0 = time.time()
-            # img = torch.from_numpy(img).to(device)
-            # img = img.half() if half else img.float()  # uint8 to fp16/32
-            # im0s[0] /= 255.0  # 0 - 255 to 0.0 - 1.0
-            # if img.ndimension() == 3:
-            #     img = img.unsqueeze(0)
-            # print(img.shape)
-            
 
             flag_move = False
             flag_anyone_in_door = False
@@ -171,7 +164,6 @@ def detect(config):
             scaled_conf = []
             detections = torch.Tensor()
             for i, (det, conf, cls) in enumerate(zip(preds, confs, clss)):
-                
 
                 if det is not None and len(det):
                     # Rescale boxes from imgsz to im0 size
