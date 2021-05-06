@@ -500,6 +500,22 @@ def bbox_rel(*xyxy):
     return x_c, y_c, w, h
 
 
+def find_ratio_ofbboxes(bbox, rect_compare):
+    ratio = 0
+    rect_detection = Rectangle(bbox[0], bbox[1],
+                               bbox[2], bbox[3])
+    inter_detection = rect_detection & rect_compare
+    if inter_detection:
+        inter_square_detection = rect_square(*inter_detection)
+        cur_square_detection = rect_square(*rect_detection)
+        try:
+            ratio = inter_square_detection / cur_square_detection
+        except ZeroDivisionError:
+            ratio = 0
+    return ratio
+
+
+
 def compute_color_for_labels(label):
     """
     Simple function that adds fixed color depending on the class

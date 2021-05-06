@@ -1,8 +1,9 @@
 {
-  "source0": "data_files/in_1.mp4",
-  "source": "rtsp://admin:admin@192.168.1.52:554/1/h264major",
-  "FRAMES_TO_PERSIST" : 10,
-  "MIN_SIZE_FOR_MOVEMENT" : 500,
-  "MOVEMENT_DETECTED_PERSISTENCE" : 100
+  "source9": "data_files/videos/in_1.mp4",
+  "source": "rtsp://admin:admin@192.168.1.18:554/1/h264major",
+  "FRAMES_TO_PERSIST" : 15,
+  "MIN_SIZE_FOR_MOVEMENT" : 700,
+  "MOVEMENT_DETECTED_PERSISTENCE" : 100,
+  "draw_rect" : "True"
 
 }

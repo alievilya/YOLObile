@@ -1,20 +1,15 @@
 import socket
-import pycuda.autoinit  # This is needed for initializing CUDA driver
-import cv2
-import os
-import time
-import argparse
 
 from deep_sort_pytorch.deep_sort import DeepSort
 from deep_sort_pytorch.utils.parser import get_config
 from models import *  # set ONNX_EXPORT in models.py
 from tracking_modules import Counter, Writer
-from tracking_modules import find_centroid, Rectangle, rect_square, draw_boxes
+from tracking_modules import find_centroid, Rectangle, draw_boxes, find_ratio_ofbboxes
+from utils.datasets import *
 from utils.utils import *
 from utils.visualization import BBoxVisualization
 from utils.yolo_classes import get_cls_dict
 from utils.yolo_with_plugins import get_input_shape, TrtYOLO
-from utils.datasets import *
 
 WINDOW_NAME = 'TrtYOLODemo'
 
@@ -60,11 +55,12 @@ def run_detection():
 
 
 def xyxy_to_xywh(bbox_xyxy):
-    xc = int(bbox_xyxy[0] + bbox_xyxy[2])/2
-    yc = int(bbox_xyxy[1] + bbox_xyxy[3])/2
+    xc = int(bbox_xyxy[0] + bbox_xyxy[2]) / 2
+    yc = int(bbox_xyxy[1] + bbox_xyxy[3]) / 2
     w = int(abs(bbox_xyxy[2] - bbox_xyxy[0]))
     h = int(abs(bbox_xyxy[3] - bbox_xyxy[1]))
     return (xc, yc, w, h)
+
 
 def detect(config):
     COLOR_AROUND_DOOR = (48, 58, 221)
@@ -133,7 +129,6 @@ def detect(config):
         save_img = True
         dataset = LoadImages(source, img_size=imgsz)
     img = torch.zeros((3, imgsz, imgsz), device=device)  # init img
-    
 
     cls_dict = get_cls_dict(config["category_num"])
     vis = BBoxVisualization(cls_dict)
@@ -148,17 +143,15 @@ def detect(config):
 
             flag_move = False
             flag_anyone_in_door = False
-            
+
             ratio_detection = 0
             # Process detections
             lost_ids = counter.return_lost_ids()
             if webcam:  # batch_size >= 1
-                p, s, im0 = path[0], '%g: ' % 0, im0s[0].copy() #TODO mb needed in loop for detection
+                p, s, im0 = path[0], '%g: ' % 0, im0s[0].copy()  # TODO mb needed in loop for detection
             else:
                 p, s, im0 = path, '', im0s
-            
             preds, confs, clss = perform_detection(frame=im0, trt_yolo=trt_yolo, conf_th=config["conf_thres"], vis=vis)
-
             scaled_pred = []
             scaled_conf = []
             detections = torch.Tensor()
@@ -167,16 +160,14 @@ def detect(config):
                     if names[int(cls)] not in config["needed_classes"]:
                         continue
                     det = xyxy_to_xywh(det)
-                    #det = scale_coords(img_shape, det, im0.shape)
+                    # det = scale_coords(img_shape, det, im0.shape)
                     scaled_pred.append(det)
                     scaled_conf.append(conf)
                 detections = torch.Tensor(scaled_pred)
                 confidences = torch.Tensor(scaled_conf)
                 # Pass detections to deepsort
             if len(detections) != 0:
-
                 outputs = deepsort.update(detections, confidences, im0)
-
                 # draw boxes for visualization
                 if len(outputs) > 0:
                     bbox_xyxy = outputs[:, :4]
@@ -184,94 +175,49 @@ def detect(config):
                     draw_boxes(im0, bbox_xyxy, identities)
                     # print('bbox_xywh ', bbox_xywh, 'id', identities)
                     counter.update_identities(identities)
-
                     for bbox_tracked, id_tracked in zip(bbox_xyxy, identities):
-
-                        rect_detection = Rectangle(bbox_tracked[0], bbox_tracked[1],
-                                                    bbox_tracked[2], bbox_tracked[3])
-                        inter_detection = rect_detection & rect_around_door
-                        if inter_detection:
-                            inter_square_detection = rect_square(*inter_detection)
-                            cur_square_detection = rect_square(*rect_detection)
-                            try:
-                                ratio_detection = inter_square_detection / cur_square_detection
-                            except ZeroDivisionError:
-                                ratio_detection = 0
+                        ratio_initial = find_ratio_ofbboxes(bbox=bbox_tracked, rect_compare=rect_around_door)
                         #  чел первый раз в контуре двери
-                        if ratio_detection > 0.2:
+                        if ratio_initial > 0.2:
                             if VideoHandler.counter_frames_indoor == 0:
                                 #     флаг о начале записи
                                 VideoHandler.start_video(id_tracked)
                             flag_anyone_in_door = True
-
-                        elif ratio_detection > 0.2 and id_tracked not in VideoHandler.id_inside_door_detected:
+                        elif ratio_initial > 0.2 and id_tracked not in VideoHandler.id_inside_door_detected:
                             VideoHandler.continue_opened_video(id=id_tracked, seconds=3)
                             flag_anyone_in_door = True
-
                         if id_tracked not in counter.people_init or counter.people_init[id_tracked] == 0:
                             counter.obj_initialized(id_tracked)
-                            rect_head = Rectangle(bbox_tracked[0], bbox_tracked[1], bbox_tracked[2],
-                                                    bbox_tracked[3])
-                            intersection = rect_head & rect_door
-                            if intersection:
-                                intersection_square = rect_square(*intersection)
-                                head_square = rect_square(*rect_head)
-                                rat = intersection_square / head_square
-                                if rat >= 0.3 and bbox_tracked[3] > low_border:
-                                    #     was initialized in door, probably going out of office
-                                    counter.people_init[id_tracked] = 2
-                                elif rat < 0.3:
-                                    #     initialized in the corridor, mb going in
-                                    counter.people_init[id_tracked] = 1
-                            else:
-                                # res is None, means that object is not in door contour
+                            if ratio_initial >= 0.2 and bbox_tracked[3] > low_border:
+                                #     was initialized in door, probably going out of office
+                                counter.people_init[id_tracked] = 2
+                            elif ratio_initial < 0.2:
+                                #     initialized in the corridor, mb going in
                                 counter.people_init[id_tracked] = 1
+                            # else:
+                            #     # res is None, means that object is not in door contour
+                            #     counter.people_init[id_tracked] = 1
                             counter.frame_age_counter[id_tracked] = 0
-
                             counter.people_bbox[id_tracked] = bbox_tracked
-
                         counter.cur_bbox[id_tracked] = bbox_tracked
             else:
                 deepsort.increment_ages()
-
             # Stream results
             vals_to_del = []
             for val in counter.people_init.keys():
                 # check bbox also
-                inter = 0
-                cur_square = 0
-                ratio = 0
                 cur_c = find_centroid(counter.cur_bbox[val])
                 centroid_distance = np.sum(np.array([(door_c[i] - cur_c[i]) ** 2 for i in range(len(door_c))]))
-
-                # init_c = find_centroid(counter.people_bbox[val])
-                # vector_person = (cur_c[0] - init_c[0],
-                #                  cur_c[1] - init_c[1])
-
-                rect_cur = Rectangle(counter.cur_bbox[val][0], counter.cur_bbox[val][1],
-                                     counter.cur_bbox[val][2], counter.cur_bbox[val][3])
-                inter = rect_cur & rect_door
-
+                ratio = find_ratio_ofbboxes(bbox=counter.cur_bbox[val], rect_compare=rect_door)
                 if val in lost_ids and counter.people_init[val] != -1:
-
-                    if inter:
-                        inter_square = rect_square(*inter)
-                        cur_square = rect_square(*rect_cur)
-                        try:
-                            ratio = inter_square / cur_square
-
-                        except ZeroDivisionError:
-                            ratio = 0
                     # if vector_person < 0 then current coord is less than initialized, it means that man is going
                     # in the exit direction
-
                     if counter.people_init[val] == 2 \
                             and ratio < 0.4 and centroid_distance > 5000:
                         print('ratio out: {}\n centroids: {}\n'.format(ratio, centroid_distance))
                         counter.get_out()
                         counter.people_init[val] = -1
                         VideoHandler.stop_recording(action_occured="вышел из кабинета")
-
                         vals_to_del.append(val)
 
                     elif counter.people_init[val] == 1 \
@@ -281,19 +227,11 @@ def detect(config):
                         counter.people_init[val] = -1
                         VideoHandler.stop_recording(action_occured="зашел внутрь")
                         vals_to_del.append(val)
-
                     lost_ids.remove(val)
 
                 # TODO maybe delete this condition
                 elif counter.frame_age_counter.get(val, 0) >= counter.max_frame_age_counter \
                         and counter.people_init[val] == 2:
-                    if inter:
-                        inter_square = rect_square(*inter)
-                        cur_square = rect_square(*rect_cur)
-                        try:
-                            ratio = inter_square / cur_square
-                        except ZeroDivisionError:
-                            ratio = 0
 
                     if ratio < 0.2 and centroid_distance > 10000:
                         counter.get_out()
@@ -335,7 +273,7 @@ def detect(config):
                     wr.write(
                         'video {}, man {}, centroid {} '.format(VideoHandler.video_name, VideoHandler.action_occured,
                                                                 centroid_distance))
-                                                            
+
                 print('_________________video was sent _________________')
 
                 VideoHandler = Writer()
@@ -367,14 +305,14 @@ def detect(config):
                 motion_detection = True
             else:
                 if VideoHandler.flag_writing_video:
-                    print('\writing video ') 
+                    print('\writing video ')
                 if VideoHandler.flag_stop_writing:
-                    print('stop writing') 
+                    print('stop writing')
                 if flag_anyone_in_door:
-                    print('anyone in door') 
+                    print('anyone in door')
                 if VideoHandler.counter_frames_indoor:
-                    print('counter frames indoor: {}'.format(VideoHandler.counter_frames_indoor)) 
-        # fps = 20
+                    print('counter frames indoor: {}'.format(VideoHandler.counter_frames_indoor))
+                    # fps = 20
 
 
 # python detect.py --cfg cfg/csdarknet53s-panet-spp.cfg --weights cfg/best14x-49.pt --source 0
