@@ -67,6 +67,9 @@ def xyxy_to_xywh(bbox_xyxy):
     return (xc, yc, w, h)
 
 def detect(config):
+    COLOR_AROUND_DOOR = (48, 58, 221)
+    COLOR_DOOR = (23, 158, 21)
+    COLOR_LINE = (214, 4, 54)
     sent_videos = set()
     video_name = ""
     fpeses = []
@@ -76,11 +79,7 @@ def detect(config):
     # door_array = [475, 69, 557, 258]
     global flag, vid_writer, lost_ids
     # initial parameters
-    # door_array = [528, 21, 581, 315]
-    # door_array = [596, 76, 650, 295]  #  18 stream
     door_array = [611, 70, 663, 310]
-    # around_door_array = [572, 79, 694, 306]  #
-    # around_door_array = [470, 34, 722, 391]
     around_door_array = [507, 24, 724, 374]
     low_border = 225
     #
@@ -92,7 +91,7 @@ def detect(config):
     PORT = 8085
     # camera info
     save_img = True
-    imgsz = (256, 256) if ONNX_EXPORT else config[
+    imgsz = (416, 416) if ONNX_EXPORT else config[
         "img_size"]  # (320, 192) or (416, 256) or (608, 352) for (height, width)
     out, source, weights, half, view_img = config["output"], config["source"], config["weights"], \
                                            config["half"], config["view_img"]
@@ -143,7 +142,7 @@ def detect(config):
 
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
         sock.connect((HOST, PORT))
-        img_shape = (256, 256)
+        # img_shape = img_size
         for frame_idx, (path, img, im0s, vid_cap) in enumerate(dataset):
             t0 = time.time()
             # img = torch.from_numpy(img).to(device)
@@ -171,22 +170,15 @@ def detect(config):
             scaled_conf = []
             detections = torch.Tensor()
             for i, (det, conf, cls) in enumerate(zip(preds, confs, clss)):
-                
-
-                if det is not None and len(det):
-                    # Rescale boxes from imgsz to im0 size
-                    
+                if det is not None and len(det):           
                     if names[int(cls)] not in config["needed_classes"]:
                         continue
-                    # Write results
                     det = xyxy_to_xywh(det)
                     #det = scale_coords(img_shape, det, im0.shape)
                     scaled_pred.append(det)
                     scaled_conf.append(conf)
-
                 detections = torch.Tensor(scaled_pred)
                 confidences = torch.Tensor(scaled_conf)
-
                 # Pass detections to deepsort
             if len(detections) != 0:
 
@@ -195,8 +187,6 @@ def detect(config):
                 # draw boxes for visualization
                 if len(outputs) > 0:
                     bbox_xyxy = outputs[:, :4]
-                    # bbox_xywh = xyxy_to_xywh(bbox_xyxy)
-	
                     identities = outputs[:, -1]
                     draw_boxes(im0, bbox_xyxy, identities)
                     # print('bbox_xywh ', bbox_xywh, 'id', identities)
@@ -292,7 +282,7 @@ def detect(config):
                         vals_to_del.append(val)
 
                     elif counter.people_init[val] == 1 \
-                            and ratio >= 0.4 and centroid_distance < 1000:
+                            and ratio >= 0.4 and centroid_distance < 2000:
                         print('ratio in: {}\n centroids: {}\n'.format(ratio, centroid_distance))
                         counter.get_in()
                         counter.people_init[val] = -1
@@ -331,16 +321,16 @@ def detect(config):
 
             cv2.rectangle(im0, (int(door_array[0]), int(door_array[1])),
                           (int(door_array[2]), int(door_array[3])),
-                          (23, 158, 21), 3)
+                          COLOR_DOOR, 3)
 
             cv2.rectangle(im0, (int(around_door_array[0]), int(around_door_array[1])),
                           (int(around_door_array[2]), int(around_door_array[3])),
-                          (48, 58, 221), 3)
+                          COLOR_AROUND_DOOR, 3)
 
             cv2.putText(im0, "in: {}, out: {} ".format(ins, outs), (10, 35), 0,
                         1e-3 * im0.shape[0], (255, 255, 255), 3)
 
-            cv2.line(im0, (door_array[0], low_border), (880, low_border), (214, 4, 54), 4)
+            cv2.line(im0, (door_array[0], low_border), (880, low_border), COLOR_LINE, 4)
 
             if VideoHandler.stop_writing(im0):
                 # send_new_posts(video_name, action_occured)
@@ -376,7 +366,7 @@ def detect(config):
             elif len(fpeses) == 15:
                 # fps = round(np.median(np.array(fpeses)))
                 fps = np.median(np.array(fpeses))
-                # fps = 10
+                fps = 20
                 print('fps set: ', fps)
                 VideoHandler.set_fps(fps)
                 counter.set_fps(fps)
