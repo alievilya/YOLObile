@@ -80,13 +80,15 @@ class MoveDetector():
                 self.output_video.write(frame)
                 self.output_video.release()
                 print('released')
+                self.stop_writing = False
+                self.output_video = None
 
     def move_near_door(self, contours):
         if len(contours) > 0:
             for contour in contours:
                 # bbox = contour[0] + contour[1]
                 ratio_contour = find_ratio_ofbboxes(contour, rect_compare=self.rect_around_door)
-                if ratio_contour > 0.2:
+                if ratio_contour >= 0:
                     return True
                 else:
                     return False
@@ -118,8 +120,8 @@ class MoveDetector():
         # Set the next frame to compare (the current frame)
         self.next_frame = self.gray
         # Compare the two frames, find the difference
-        frame_delta = cv2.absdiff(self.first_frame, self.next_frame)
-        thresh = cv2.threshold(frame_delta, 20, 255, cv2.THRESH_BINARY)[1]
+        self.frame_delta = cv2.absdiff(self.first_frame, self.next_frame)
+        thresh = cv2.threshold(self.frame_delta, 20, 255, cv2.THRESH_BINARY)[1]
         thresh = cv2.dilate(thresh, None, iterations=4)
         cnts, _ = cv2.findContours(thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
@@ -157,7 +159,7 @@ class MoveDetector():
 
         cv2.putText(self.frame, str(text), (10, 35), self.font, 0.75, (255, 255, 255), 2, cv2.LINE_AA)
 
-        frame_delta = cv2.cvtColor(frame_delta, cv2.COLOR_GRAY2BGR)
+        self.frame_delta = cv2.cvtColor(self.frame_delta, cv2.COLOR_GRAY2BGR)
         return self.frame, moving_cnts
 
 
