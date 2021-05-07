@@ -83,6 +83,7 @@ def detect(config):
     door_array = [611, 70, 663, 310]
     around_door_array = [507, 24, 724, 374]
     low_border = 225
+    high_border = 342
     #
     door_c = find_centroid(door_array)
     rect_door = Rectangle(door_array[0], door_array[1], door_array[2], door_array[3])
@@ -194,7 +195,7 @@ def detect(config):
                             flag_anyone_in_door = True
                         if id_tracked not in counter.people_init or counter.people_init[id_tracked] == 0:
                             counter.obj_initialized(id_tracked)
-                            if ratio_door >= 0.2 and bbox_tracked[3] > low_border:
+                            if ratio_door >= 0.2 and low_border < bbox_tracked[3] < high_border :
                                 #     was initialized in door, probably going out of office
                                 counter.people_init[id_tracked] = 2
                             elif ratio_door < 0.2:

@@ -19,6 +19,7 @@ def detect(config):
     door_array = [611, 70, 663, 310]
     around_door_array = [507, 24, 724, 374]
     low_border = 225
+    high_border = 342
     door_c = find_centroid(door_array)
     rect_door = Rectangle(door_array[0], door_array[1], door_array[2], door_array[3])
     rect_around_door = Rectangle(around_door_array[0], around_door_array[1], around_door_array[2], around_door_array[3])
@@ -167,6 +168,7 @@ def detect(config):
                     for bbox_tracked, id_tracked in zip(bbox_xyxy, identities):
 
                         ratio_initial = find_ratio_ofbboxes(bbox=bbox_tracked, rect_compare=rect_around_door)
+                        ratio_door = find_ratio_ofbboxes(bbox=bbox_tracked, rect_compare=rect_door)
                         #  чел первый раз в контуре двери
                         if ratio_initial > 0.2:
                             if VideoHandler.counter_frames_indoor == 0:
@@ -183,10 +185,10 @@ def detect(config):
 
                         if id_tracked not in counter.people_init or counter.people_init[id_tracked] == 0:
                             counter.obj_initialized(id_tracked)
-                            if ratio_initial >= 0.4 and bbox_tracked[3] > low_border:
+                            if ratio_door >= 0.2 and low_border < bbox_tracked[3] < high_border :
                                 #     was initialized in door, probably going out of office
                                 counter.people_init[id_tracked] = 2
-                            elif ratio_initial < 0.4:
+                            elif ratio_door < 0.4:
                                 #     initialized in the corridor, mb going in
                                 counter.people_init[id_tracked] = 1
                             else:
