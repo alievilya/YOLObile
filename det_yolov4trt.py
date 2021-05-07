@@ -19,7 +19,7 @@ from utils.yolo_with_plugins import get_input_shape, TrtYOLO
 WINDOW_NAME = 'TrtYOLODemo'
 
 
-def perform_detection(frame, trt_yolo, conf_th, vis):
+def perform_detection(frame, trt_yolo, conf_th, vis=None):
     """Continuously capture images from camera and do object detection.
 
     # Arguments
@@ -32,7 +32,8 @@ def perform_detection(frame, trt_yolo, conf_th, vis):
 
     if frame is None: print('no frame')
     boxes, confs, clss = trt_yolo.detect(frame, conf_th)
-    frame = vis.draw_bboxes(frame, boxes, confs, clss)
+    if vis is not None:
+        frame = vis.draw_bboxes(frame, boxes, confs, clss)
     return boxes, confs, clss
 
 
@@ -52,11 +53,11 @@ def run_detection():
     frame_width, frame_height = int(cap.get(3)), int(cap.get(4))
 
     cls_dict = get_cls_dict(detect_config["category_num"])
-    vis = BBoxVisualization(cls_dict)
+    #vis = BBoxVisualization(cls_dict)
     h, w = get_input_shape(detect_config["model"])
     trt_yolo = TrtYOLO(detect_config["model"], (h, w), detect_config["category_num"], detect_config["letter_box"])
     ret, frame = cap.read()
-    boxes, confs, clss = perform_detection(frame=frame, trt_yolo=trt_yolo, conf_th=0.3, vis=vis)
+    boxes, confs, clss = perform_detection(frame=frame, trt_yolo=trt_yolo, conf_th=0.3, vis=None)
 
 
 def xyxy_to_xywh(bbox_xyxy):
@@ -137,7 +138,8 @@ def detect(config):
     img = torch.zeros((3, imgsz, imgsz), device=device)  # init img
 
     cls_dict = get_cls_dict(config["category_num"])
-    vis = BBoxVisualization(cls_dict)
+    #vis = BBoxVisualization(cls_dict)
+    vis = None
     h, w = get_input_shape(config["model"])
     trt_yolo = TrtYOLO(config["model"], (h, w), config["category_num"], config["letter_box"])
 
@@ -268,7 +270,8 @@ def detect(config):
             cv2.putText(im0, "in: {}, out: {} ".format(ins, outs), (10, 35), 0,
                         1e-3 * im0.shape[0], (255, 255, 255), 3)
 
-            cv2.line(im0, (door_array[0], low_border), (880, low_border), COLOR_LINE, 4)
+            cv2.line(im0, (door_array[0], low_border), (680, low_border), COLOR_LINE, 4)
+            cv2.line(im0, (door_array[0], high_border), (680, high_border), COLOR_LINE, 4)
 
             if VideoHandler.stop_writing(im0):
                 # send_new_posts(video_name, action_occured)
@@ -305,7 +308,8 @@ def detect(config):
                 # fps = round(np.median(np.array(fpeses)))
                 median_fps = float(np.median(np.array(fpeses)))
                 fps = round(median_fps, 2)
-                print('fps set: ', fps)
+                print('max fps: ', fps)
+                fps = 20
                 VideoHandler.set_fps(fps)
                 counter.set_fps(fps)
                 fpeses.append(fps)
