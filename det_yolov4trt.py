@@ -277,8 +277,8 @@ def detect(config):
                 sent_videos.add(VideoHandler.video_name)
                 with open('data_files/logs2.txt', 'a', encoding="utf-8-sig") as wr:
                     wr.write(
-                        'video {}, action: {}, centroid {} \n'.format(VideoHandler.video_name, VideoHandler.action_occured,
-                                                                centroid_distance))
+                        'video {}, action: {}, centroid: {}, ratio_init: {}, ratio_door: {}, ratio: {} \n'.format(VideoHandler.video_name, VideoHandler.action_occured,
+                                                                centroid_distance, ratio_initial, ratio_door, ratio) )
 
                 print('_________________video was sent _________________')
 
