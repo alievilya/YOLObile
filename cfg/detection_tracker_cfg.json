@@ -17,7 +17,7 @@
   "augment": "False",
   "agnostic_nms": "False",
   "half": "True",
-  "view_img": "False",
+  "view_img": "True",
   "save_txt": "False",
   "category_num": 80,
   "model": "yolov4-tiny-416",
