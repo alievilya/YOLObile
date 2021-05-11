@@ -163,6 +163,7 @@ def detect(config):
             scaled_pred = []
             scaled_conf = []
             detections = torch.Tensor()
+
             for i, (det, conf, cls) in enumerate(zip(preds, confs, clss)):
                 if det is not None and len(det):
                     if names[int(cls)] not in config["needed_classes"]:
@@ -231,6 +232,7 @@ def detect(config):
 
                     elif counter.people_init[val] == 1 \
                             and ratio >= 0.4 and centroid_distance < 5000:
+			# and low_border < counter.cur_bbox[val][3]
                         print('ratio in: {}\n centroids: {}\n'.format(ratio, centroid_distance))
                         counter.get_in()
                         counter.people_init[val] = -1
