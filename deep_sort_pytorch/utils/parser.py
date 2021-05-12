@@ -1,6 +1,10 @@
 import os
 import yaml
 from easydict import EasyDict as edict
+import sys
+
+sys.path.append('/venv/lib/python3.7/site-packages')
+sys.path.append('/venv/lib/python3.7/site-packages/easydict')
 
 
 class YamlParser(edict):

@@ -28,7 +28,7 @@ def get_truth(video_name):
 
 
 class Counter:
-    def __init__(self):
+    def __init__(self, counter_in=0, counter_out=0, track_id=0):
         self.frames_without_moves = 0
         self.fps = 20
         self.max_frame_age_counter = self.fps * 5  # TODO check
