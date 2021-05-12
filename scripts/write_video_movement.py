@@ -164,7 +164,7 @@ class MoveDetector():
 
 
 if __name__ == "__main__":
-    with open("cfg/motion_detection_cfg.json") as config_file:
+    with open("../cfg/motion_detection_cfg.json") as config_file:
         config = json.load(config_file)
 
     Motion = [MoveDetector() for _ in range(1)]
