@@ -8,6 +8,11 @@ from tracking_modules import find_centroid, Rectangle, bbox_rel, draw_boxes, sel
     find_ratio_ofbboxes
 from utils.datasets import *
 from utils.utils import *
+import sys
+
+sys.path.append('/venv/lib/python3.7/site-packages/')
+
+#pip3 install torch==1.7.0 torchvision==0.8.1 -f https://download.pytorch.org/whl/cu101/torch_stable.html
 
 
 def detect(config):
@@ -25,7 +30,7 @@ def detect(config):
     rect_around_door = Rectangle(around_door_array[0], around_door_array[1], around_door_array[2], around_door_array[3])
     # socket
     HOST = "localhost"
-    PORT = 8084
+    PORT = 8083
     # camera info
     save_img = True
     imgsz = (416, 416) if ONNX_EXPORT else config[
