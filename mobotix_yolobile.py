@@ -219,11 +219,13 @@ def detect(config):
                         and ratio < 0.7:
                     counter.get_out()
                     print(vector_person[0], counter.people_init[val], ratio)
+                    VideoHandler.stop_recording(action_occured="вышел из кабинета")
 
                 elif vector_person[0] < -100 and counter.people_init[val] == 1 \
                         and ratio >= 0.7:
                     counter.get_in()
                     print(vector_person[0], counter.people_init[val], ratio)
+                    VideoHandler.stop_recording(action_occured="вышел из кабинета")
 
                 counter.people_init[val] = -1
                 lost_ids.remove(val)
@@ -268,10 +270,9 @@ def detect(config):
         if len(fpeses) < 30:
             fpeses.append(1 / delta_time)
         elif len(fpeses) == 30:
-            # fps = round(np.median(np.array(fpeses)))
             median_fps = float(np.median(np.array(fpeses)))
-            fps = round(median_fps, 2)
-            # fps = 20
+            # fps = round(median_fps, 1)
+            fps = 20
             print('fps set: ', fps)
             VideoHandler.set_fps(fps)
             counter.set_fps(fps)

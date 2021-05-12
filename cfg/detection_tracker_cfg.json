@@ -1,5 +1,5 @@
 {
-  "source": "data_files/videos/test1.mp4",
+  "source": "data_files/videos/test3.mov",
   "source0": "rtsp://admin:admin@192.168.1.52:554/1/h264major",
   "weights": "weights/best14x-49.pt",
   "weights0": "weights/best8x-514.pt",
