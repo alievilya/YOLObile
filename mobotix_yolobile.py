@@ -218,14 +218,18 @@ def detect(config):
                 if vector_person[0] > 200 and counter.people_init[val] == 2 \
                         and ratio < 0.7:
                     counter.get_out()
-                    print(vector_person[0], counter.people_init[val], ratio)
                     VideoHandler.stop_recording(action_occured="вышел из кабинета")
+                    print('video {}, action: {}, vector {} \n'.format(VideoHandler.video_name,
+                                                                      VideoHandler.action_occured,
+                                                                      vector_person))
 
                 elif vector_person[0] < -100 and counter.people_init[val] == 1 \
                         and ratio >= 0.7:
                     counter.get_in()
-                    print(vector_person[0], counter.people_init[val], ratio)
                     VideoHandler.stop_recording(action_occured="вышел из кабинета")
+                    print('video {}, action: {}, vector {} \n'.format(VideoHandler.video_name,
+                                                                      VideoHandler.action_occured,
+                                                                      vector_person))
 
                 counter.people_init[val] = -1
                 lost_ids.remove(val)

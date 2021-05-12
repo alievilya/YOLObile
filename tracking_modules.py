@@ -227,7 +227,7 @@ class Writer():
         self.noone_in_door = True
 
     def set_video(self):
-        self.max_counter_frames_indoor = self.fps * 15
+        self.max_counter_frames_indoor = self.fps * 12
         hour_greenvich = strftime("%H", gmtime())
         hour_moscow = str(int(hour_greenvich) + 3)
         self.video_name = hour_moscow + strftime(" %M %S", gmtime()) + '.mp4'
