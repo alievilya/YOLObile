@@ -117,12 +117,12 @@ class Counter:
         return self.age_counter.get(track_id)
 
     def get_in(self):
-        if self.counter_out == 0:
+        if self.counter_out == 0 and self.counter_in == 0:
             self.just_inited = False
         self.counter_in += 1
 
     def get_out(self):
-        if self.counter_out == 0:
+        if self.counter_out == 0 and self.counter_in == 0:
             self.just_inited = False
         self.counter_out += 1
 
