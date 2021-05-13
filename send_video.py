@@ -29,8 +29,8 @@ def send_new_posts(videoname, actionname):
     #                  format(actionname, video_time[0], video_time[1], video_time[2]))
     # bot.send_document(chat_id=channel, data=video, caption=text_caption, timeout=50)
     bot.send_video(chat_id=channel, data=video, caption=text_caption, timeout=50)
-
     return
+
 
 
 with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
@@ -45,7 +45,3 @@ with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
             conn.sendall(bytes('received: ' + video_data[0] + video_data[1], "utf-8"))
             print(video_data)
             send_new_posts(video_data[0], video_data[1])
-
-            # time.sleep(10)
-
-# add.delay(1,2)

@@ -211,6 +211,8 @@ def detect(config):
                         counter.cur_bbox[id_tracked] = bbox_tracked
             else:
                 deepsort.increment_ages()
+                if counter.need_to_clear():
+                    counter.clear_all()
             # Stream results
             vals_to_del = []
             for val in counter.people_init.keys():

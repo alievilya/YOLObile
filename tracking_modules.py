@@ -29,6 +29,7 @@ def get_truth(video_name):
 
 class Counter:
     def __init__(self, counter_in=0, counter_out=0, track_id=0):
+        self.just_inited = True
         self.frames_without_moves = 0
         self.fps = 20
         self.max_frame_age_counter = self.fps * 5  # TODO check
@@ -116,9 +117,13 @@ class Counter:
         return self.age_counter.get(track_id)
 
     def get_in(self):
+        if self.counter_out == 0:
+            self.just_inited = False
         self.counter_in += 1
 
     def get_out(self):
+        if self.counter_out == 0:
+            self.just_inited = False
         self.counter_out += 1
 
     def show_counter(self):
@@ -153,7 +158,9 @@ class MotionDetector():
     def init_first_frame(self, grayframe):
         if self.first_frame is None:
             self.first_frame = grayframe
-    # Read frame
+
+
+
     def find_motion(self, frame):
         self.transient_movement_flag = False
         # Resize and save a greyscale version of the image
