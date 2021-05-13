@@ -23,8 +23,6 @@ def detect(config):
                   'мая', 'июня', 'июля','августа',
                   'сентября', 'октября','ноября', 'декабря')
     fpeses = []
-    fps = 0.0
-    fps_imutils = imutils.video.FPS().start()
 
     left_array = None
     rect_left = None
@@ -38,7 +36,7 @@ def detect(config):
         bot.send_message(chat_id=channel, text=msg_tosend)
 
     def write_log(current_date, counter_in, counter_out):
-        msg_towrite = "{}: зашло {}, вышло {}".format(current_date, counter_in, counter_out)
+        msg_towrite = "{}: зашло {}, вышло {}\n".format(current_date, counter_in, counter_out)
         with open('data_files/mobotix_counter.txt', 'a', encoding="utf-8-sig") as wr:
             wr.write(msg_towrite)
 
