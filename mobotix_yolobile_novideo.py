@@ -18,7 +18,8 @@ sys.path.append('/venv/lib/python3.7/site-packages/')
 
 def detect(config):
     # sent_videos = set()
-    TIME_TO_SEND_MSG = 11  # Greenvich Time
+    TIME_TO_SEND_MSG_MSC = 11  # Greenvich Time
+    time_to_send_msg = TIME_TO_SEND_MSG_MSC - 3
     months_rus = ('января', 'февраля', 'марта', 'апреля',
                   'мая', 'июня', 'июля','августа',
                   'сентября', 'октября','ноября', 'декабря')
@@ -83,12 +84,10 @@ def detect(config):
         model.half()
 
     if webcam:
-        view_img = True
         torch.backends.cudnn.benchmark = True  # set True to speed up constant image size inference
         dataset = LoadStreams(source, img_size=imgsz)
     else:
         save_img = True
-        view_img = True
         torch.backends.cudnn.benchmark = True  # set True to speed up constant image size inference
         dataset = LoadImages(source, img_size=imgsz)
 
@@ -275,7 +274,7 @@ def detect(config):
             # print('counter frames indoor: ', VideoHandler.counter_frames_indoor)
         # fps = 20
         gm_time = gmtime()
-        if gm_time.tm_hour == TIME_TO_SEND_MSG and not counter.just_inited:
+        if gm_time.tm_hour == time_to_send_msg and not counter.just_inited:
             day = gm_time.tm_mday
             month = months_rus[gm_time.tm_mon - 1]
             year = gm_time.tm_year

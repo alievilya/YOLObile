@@ -1,5 +1,6 @@
 {
-  "source": "rtsp://admin:admin@192.168.1.52:554/1/h264major",
+  "source0": "rtsp://admin:admin@192.168.1.52:554/1/h264major",
+  "source": "data_files/videos/test3.mov",
   "weights": "weights/best14x-49.pt",
   "config_deepsort": "deep_sort_pytorch/configs/deep_sort.yaml",
   "cfg": "cfg/csdarknet53s-panet-spp.cfg",
@@ -15,7 +16,7 @@
   "augment": "False",
   "agnostic_nms": "False",
   "half": "True",
-  "view_img": "True",
+  "view_img": "False",
   "save_txt": "False",
   "category_num": 80,
   "model": "yolov4-tiny-416",
