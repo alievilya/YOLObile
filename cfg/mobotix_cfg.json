@@ -1,5 +1,5 @@
 {
-  "source0": "rtsp://admin:admin@192.168.1.52:554/1/h264major",
+  "source0": "http://10.22.1.52/control/faststream.jpg?stream=full&preview&previewsize=640x480&quality=30&fps=15.0&camera=right",
   "source": "data_files/videos/test3.mov",
   "weights": "weights/best14x-49.pt",
   "config_deepsort": "deep_sort_pytorch/configs/deep_sort.yaml",

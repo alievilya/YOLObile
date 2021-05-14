@@ -46,7 +46,7 @@ def detect(config):
     imgsz = (416, 416) if ONNX_EXPORT else config[
         "img_size"]  # (320, 192) or (416, 256) or (608, 352) for (height, width)
     out, source, weights, half, view_img = config["output"], config["source"], config["weights"], \
-                                           config["half"], bool(config["view_img"])
+                                           config["half"], config["view_img"]
     webcam = source == '0' or source.startswith('rtsp') or source.startswith('http') or source.endswith('.txt')
     # initialize deepsort
     cfg = get_config()
@@ -243,8 +243,7 @@ def detect(config):
         #
         # else:
         #     VideoHandler.continue_writing(im0, flag_anyone_in_door)
-        print(view_img)
-        if view_img:
+        if view_img == 'True':
             cv2.rectangle(im0, (0, 0), (250, 50),
                           (0, 0, 0), -1, 8)
             cv2.rectangle(im0, (int(left_array[0]), int(left_array[1])), (int(left_array[2]), int(left_array[3])),
@@ -289,8 +288,6 @@ def detect(config):
 import json
 
 if __name__ == '__main__':
-    # subprocess.run("python send_video.py", shell=True)
-    # os.system("python send_video.py &")
     with open("cfg/mobotix_cfg.json") as detection_config:
         detect_config = json.load(detection_config)
     print(detect_config["cfg"])
