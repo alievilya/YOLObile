@@ -18,7 +18,7 @@ sys.path.append('/venv/lib/python3.7/site-packages/')
 
 def detect(config):
     # sent_videos = set()
-    TIME_TO_SEND_MSG_MSC = 11  # Greenvich Time
+    TIME_TO_SEND_MSG_MSC = int(config["time_msc"])  # Greenvich Time
     time_to_send_msg = TIME_TO_SEND_MSG_MSC - 3
     months_rus = ('января', 'февраля', 'марта', 'апреля',
                   'мая', 'июня', 'июля','августа',
