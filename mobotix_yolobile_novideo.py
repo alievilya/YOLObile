@@ -18,7 +18,7 @@ sys.path.append('/venv/lib/python3.7/site-packages/')
 
 def detect(config):
     # sent_videos = set()
-    TIME_TO_SEND_MSG_MSC = 11  # Greenvich Time
+    TIME_TO_SEND_MSG_MSC = int(config["time_msc"])  # Greenvich Time
     time_to_send_msg = TIME_TO_SEND_MSG_MSC - 3
     months_rus = ('января', 'февраля', 'марта', 'апреля',
                   'мая', 'июня', 'июля','августа',
@@ -243,8 +243,7 @@ def detect(config):
         #
         # else:
         #     VideoHandler.continue_writing(im0, flag_anyone_in_door)
-
-        if view_img:
+        if view_img == 'True':
             cv2.rectangle(im0, (0, 0), (250, 50),
                           (0, 0, 0), -1, 8)
             cv2.rectangle(im0, (int(left_array[0]), int(left_array[1])), (int(left_array[2]), int(left_array[3])),
@@ -289,8 +288,6 @@ def detect(config):
 import json
 
 if __name__ == '__main__':
-    # subprocess.run("python send_video.py", shell=True)
-    # os.system("python send_video.py &")
     with open("cfg/mobotix_cfg.json") as detection_config:
         detect_config = json.load(detection_config)
     print(detect_config["cfg"])
