@@ -28,7 +28,7 @@ def get_truth(video_name):
 
 
 class Counter:
-    def __init__(self):
+    def __init__(self, counter_in=0, counter_out=0, track_id=0):
         self.frames_without_moves = 0
         self.fps = 20
         self.max_frame_age_counter = self.fps * 5  # TODO check
@@ -216,7 +216,7 @@ class Writer():
         self.fps = 3
         self.max_counter_frames_indoor = self.fps * 12
         # self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
-        self.fourcc = cv2.VideoWriter_fourcc(*'X264')
+        self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
         self.counter_frames_indoor = 0
         self.flag_stop_writing = False
         self.flag_writing_video = False
@@ -227,7 +227,7 @@ class Writer():
         self.noone_in_door = True
 
     def set_video(self):
-        self.max_counter_frames_indoor = self.fps * 15
+        self.max_counter_frames_indoor = self.fps * 12
         hour_greenvich = strftime("%H", gmtime())
         hour_moscow = str(int(hour_greenvich) + 3)
         self.video_name = hour_moscow + strftime(" %M %S", gmtime()) + '.mp4'
