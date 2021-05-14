@@ -231,8 +231,7 @@ def detect(config):
                         vals_to_del.append(val)
 
                     elif counter.people_init[val] == 1 \
-                            and ratio >= 0.4 and centroid_distance < 5000:
-			# and low_border < counter.cur_bbox[val][3]
+                            and ratio >= 0.4 and centroid_distance < 5000 and low_border < counter.cur_bbox[val][3] < high_border:
                         print('ratio in: {}\n centroids: {}\n'.format(ratio, centroid_distance))
                         counter.get_in()
                         counter.people_init[val] = -1
@@ -240,10 +239,8 @@ def detect(config):
                         vals_to_del.append(val)
                     lost_ids.remove(val)
 
-                # TODO maybe delete this condition
                 elif counter.frame_age_counter.get(val, 0) >= counter.max_frame_age_counter \
                         and counter.people_init[val] == 2:
-
                     if ratio < 0.2 and centroid_distance > 10000:
                         counter.get_out()
                         print('ratio out max frames: ', ratio)

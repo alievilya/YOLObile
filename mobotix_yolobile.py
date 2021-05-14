@@ -1,5 +1,7 @@
-import socket
-
+import sys
+from time import gmtime
+import imutils.video
+import telebot
 from deep_sort_pytorch.deep_sort import DeepSort
 from deep_sort_pytorch.utils.parser import get_config
 from models import *  # set ONNX_EXPORT in models.py
@@ -25,16 +27,34 @@ def detect(config):
     fps = 0
 
 
+from tracking_modules import find_centroid, Rectangle, bbox_rel, draw_boxes, find_ratio_ofbboxes
+from utils.datasets import *
+from utils.utils import *
+
+sys.path.append('/venv/lib/python3.7/site-packages/')
+
+# pip3 install torch==1.7.0 torchvision==0.8.1 -f https://download.pytorch.org/whl/cu101/torch_stable.html
+
+def detect(config):
+    # sent_videos = set()
+    TIME_TO_SEND_MSG = 10  # Greenvich Time
+    months_rus = ('января', 'февраля', 'марта', 'апреля',
+                  'мая', 'июня', 'июля','августа',
+                  'сентября', 'октября','ноября', 'декабря')
+    fpeses = []
     fps = 0.0
     fps_imutils = imutils.video.FPS().start()
 
     left_array = None
     rect_left = None
 
+    token = "1868509329:AAHGNVxAuV2oCl_cf9O87jaYP4t7b0jRY7w"
+    bot = telebot.TeleBot(token)
 
-    # socket
-    HOST = "localhost"
-    PORT = 8083
+    def send_message(current_date, counter_in, counter_out):
+        channel = '-1001399933919'
+        msg_tosend = "{}: зашло {}, вышло {}".format(current_date, counter_in, counter_out)
+        bot.send_message(chat_id=channel, text=msg_tosend)
     # camera info
     save_img = True
     imgsz = (416, 416) if ONNX_EXPORT else config[
@@ -48,6 +68,7 @@ def detect(config):
     # initial objects of classes
     counter = Counter(counter_in=0, counter_out=0, track_id=0)
     VideoHandler = Writer()
+
     deepsort = DeepSort(cfg.DEEPSORT.REID_CKPT,
                         max_dist=cfg.DEEPSORT.MAX_DIST, min_confidence=cfg.DEEPSORT.MIN_CONFIDENCE,
                         nms_max_overlap=cfg.DEEPSORT.NMS_MAX_OVERLAP, max_iou_distance=cfg.DEEPSORT.MAX_IOU_DISTANCE,
@@ -105,7 +126,6 @@ def detect(config):
             rect_left = Rectangle(left_array[0], left_array[1], left_array[2], left_array[3])
 
         flag_anyone_in_door = False
-        t0_ds = time.time()
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
         img /= 255.0  # 0 - 255 to 0.0 - 1.0
@@ -168,12 +188,8 @@ def detect(config):
                 for bbox_tracked, id_tracked in zip(bbox_xyxy, identities):
 
                     ratio_initial = find_ratio_ofbboxes(bbox=bbox_tracked, rect_compare=rect_left)
-                    # ratio_door = find_ratio_ofbboxes(bbox=bbox_tracked, rect_compare=rect_door)
                     #  чел первый раз в контуре двери
-                    # TODO condition to start writing video
-
                     if VideoHandler.counter_frames_indoor == 0:
-                        #     флаг о начале записи
                         VideoHandler.start_video(id_tracked)
                         flag_anyone_in_door = True
                     elif id_tracked not in VideoHandler.id_inside_door_detected:
@@ -199,11 +215,6 @@ def detect(config):
             if counter.need_to_clear():
                 counter.clear_all()
 
-        # Print time (inference + NMS)
-        t2 = torch_utils.time_synchronized()
-
-        # Stream results
-        vals_to_del = []
         for val in counter.people_init.keys():
             # check bbox also
             cur_c = find_centroid(counter.cur_bbox[val])
@@ -236,7 +247,6 @@ def detect(config):
 
             counter.clear_lost_ids()
 
-
         ins, outs = counter.show_counter()
         cv2.rectangle(im0, (0, 0), (250, 50),
                       (0, 0, 0), -1, 8)
@@ -268,9 +278,7 @@ def detect(config):
                 raise StopIteration
 
         delta_time = (torch_utils.time_synchronized() - t1)
-        # t2_ds = time.time()
-        # print('%s Torch:. (%.3fs)' % (s, t2 - t1))
-        # print('Full pipe. (%.3fs)' % (t2_ds - t0_ds))
+
         if len(fpeses) < 30:
             fpeses.append(1 / delta_time)
         elif len(fpeses) == 30:
@@ -288,6 +296,15 @@ def detect(config):
             print('flag anyone in door: ', flag_anyone_in_door)
             print('counter frames indoor: ', VideoHandler.counter_frames_indoor)
         # fps = 20
+        gm_time = gmtime()
+        if gm_time.tm_hour == TIME_TO_SEND_MSG and not counter.just_inited:
+            day = gm_time.tm_mday
+            month = months_rus[gm_time.tm_mon - 1]
+            year = gm_time.tm_year
+            date = "{} {} {}".format(day, month, year)
+            in_counted, out_counted = counter.show_counter()
+            send_message(current_date=date, counter_in=in_counted, counter_out=out_counted)
+            counter = Counter(0, 0, 0)
 
 
 # python detect.py --cfg cfg/csdarknet53s-panet-spp.cfg --weights cfg/best14x-49.pt --source 0
