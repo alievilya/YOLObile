@@ -75,3 +75,23 @@ video 13 51 49.mp4, action: вышел из кабинета, vector (704, -7)
 video 13 53 11.mp4, action: вышел из кабинета, vector (703, -7) 
 video 13 54 01.mp4, action: вышел из кабинета, vector (-697, 6) 
 >>>>>>> 9a39fd54a3d2ef68e2653bc1d73bbb585fb1e3c1
+video 15 00 24.mp4, action: зашел внутрь, centroid: 2642, ratio_init: 1.0, ratio_door: 0.22522522522522523, ratio: 0.22522522522522523 
+video 15 16 20.mp4, action: зашел внутрь, centroid: 458932, ratio_init: 1.0, ratio_door: 0.7614097363083164, ratio: 0 
+video 15 17 22.mp4, action: вышел из кабинета, centroid: 15570, ratio_init: 0, ratio_door: 0, ratio: 0 
+video 15 31 14.mp4, action: зашел внутрь, centroid: 137, ratio_init: 1.0, ratio_door: 0.6668926553672316, ratio: 0.6668926553672316 
+video 15 47 05.mp4, action: зашел внутрь, centroid: 18, ratio_init: 1.0, ratio_door: 0.7123287671232876, ratio: 0.7123287671232876 
+video 15 48 59.mp4, action: вышел из кабинета, centroid: 34245, ratio_init: 0, ratio_door: 0, ratio: 0 
+video 15 51 31.mp4, action: вышел из кабинета, centroid: 21096, ratio_init: 0, ratio_door: 0, ratio: 0 
+video 16 35 04.mp4, action: зашел внутрь, centroid: 36, ratio_init: 1.0, ratio_door: 0.8421052631578947, ratio: 0.8421052631578947 
+video 16 55 50.mp4, action: зашел внутрь, centroid: 25480, ratio_init: 1.0, ratio_door: 0.7323943661971831, ratio: 0 
+video 16 55 58.mp4, action: вышел из кабинета, centroid: 19477, ratio_init: 0, ratio_door: 0, ratio: 0 
+video 17 35 34.mp4, action: зашел внутрь, centroid: 256, ratio_init: 1.0, ratio_door: 0.6615384615384615, ratio: 0.6615384615384615 
+video 18 00 33.mp4, action: вышел из кабинета, centroid: 24641, ratio_init: 0, ratio_door: 0, ratio: 0 
+video 18 38 37.mp4, action: зашел внутрь, centroid: 325, ratio_init: 1.0, ratio_door: 0.6276463262764632, ratio: 0.6276463262764632 
+video 18 48 35.mp4, action: вышел из кабинета, centroid: 21845, ratio_init: 0, ratio_door: 0, ratio: 0 
+video 18 59 10.mp4, action: зашел внутрь, centroid: 677, ratio_init: 1.0, ratio_door: 0.5, ratio: 0.5 
+video 19 02 56.mp4, action: зашел внутрь, centroid: 829, ratio_init: 1.0, ratio_door: 0.4702734839476813, ratio: 0.4702734839476813 
+video 19 05 57.mp4, action: зашел внутрь, centroid: 194, ratio_init: 1.0, ratio_door: 0.6943252265140677, ratio: 0.6943252265140677 
+video 19 06 30.mp4, action: зашел внутрь, centroid: 212, ratio_init: 1.0, ratio_door: 0.6578947368421053, ratio: 0.6578947368421053 
+video 19 30 14.mp4, action: вышел из кабинета, centroid: 299245, ratio_init: 0, ratio_door: 0, ratio: 0 
+video 20 11 21.mp4, action: вышел, centroid: 5769, ratio_init: 0, ratio_door: 0, ratio: 0 

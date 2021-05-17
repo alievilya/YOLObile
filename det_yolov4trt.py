@@ -134,6 +134,7 @@ def detect(config):
         dataset = LoadStreams(source, img_size=imgsz)
     else:
         save_img = True
+        torch.backends.cudnn.benchmark = True  # set True to speed up constant image size inference
         dataset = LoadImages(source, img_size=imgsz)
     img = torch.zeros((3, imgsz, imgsz), device=device)  # init img
 
@@ -290,7 +291,7 @@ def detect(config):
 
             else:
                 VideoHandler.continue_writing(im0, flag_anyone_in_door)
-            if view_img is True:
+            if view_img == 'True':
                 cv2.imshow('image', im0)
                 cv2.waitKey(1)
                 if cv2.waitKey(1) == ord('q'):  # q to quit

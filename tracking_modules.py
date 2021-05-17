@@ -224,7 +224,7 @@ class Writer():
         self.fps = 3
         self.max_counter_frames_indoor = self.fps * 12
         # self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
-        self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+        self.fourcc = cv2.VideoWriter_fourcc(*'X264')
         self.counter_frames_indoor = 0
         self.flag_stop_writing = False
         self.flag_writing_video = False
