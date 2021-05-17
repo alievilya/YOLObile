@@ -4,6 +4,7 @@ import cv2
 import os
 import time
 import argparse
+import telebot
 
 from deep_sort_pytorch.deep_sort import DeepSort
 from deep_sort_pytorch.utils.parser import get_config
@@ -69,6 +70,22 @@ def xyxy_to_xywh(bbox_xyxy):
 
 
 def detect(config):
+    #TIME_TO_SEND_MSG_MSC = int(config["time_msc"])  # Greenvich Time
+    #time_to_send_msg = TIME_TO_SEND_MSG_MSC - 3
+    months_rus = ('января', 'февраля', 'марта', 'апреля',
+                  'мая', 'июня', 'июля','августа',
+                  'сентября', 'октября','ноября', 'декабря')
+    
+    token = "1780388562:AAEzyzS9YRCPQF6rME6A9U4lWArR6QDDYYM"
+    bot = telebot.TeleBot(token)
+    
+    def send_message_daily(current_date, counter_in, counter_out):
+        channel = '-1001388181852'
+        msg_tosend = "{}: зашло: {}, вышло: {}".format(current_date, counter_in, counter_out)
+        bot.send_message(chat_id=channel, text=msg_tosend)
+
+    daily_in = 0
+    daily_out = 0
     COLOR_AROUND_DOOR = (48, 58, 221)
     COLOR_DOOR = (23, 158, 21)
     COLOR_LINE = (214, 4, 54)
@@ -91,7 +108,7 @@ def detect(config):
     rect_around_door = Rectangle(around_door_array[0], around_door_array[1], around_door_array[2], around_door_array[3])
     # socket
     HOST = "localhost"
-    PORT = 8083
+    PORT = 8086
     # camera info
     save_img = True
     imgsz = (416, 416) if ONNX_EXPORT else config[
@@ -309,7 +326,8 @@ def detect(config):
                 median_fps = float(np.median(np.array(fpeses)))
                 fps = round(median_fps, 2)
                 print('max fps: ', fps)
-                fps = 20
+                if fps > 20:
+                    fps = 20                  
                 VideoHandler.set_fps(fps)
                 counter.set_fps(fps)
                 fpeses.append(fps)
@@ -325,6 +343,17 @@ def detect(config):
                     print('counter frames indoor: {}'.format(VideoHandler.counter_frames_indoor))
                     # fps = 20
 
+            gm_time = time.gmtime()
+            if gm_time.tm_hour == 14 and not counter.just_inited: #and gm_time.tm_min == 18 and gm_time.tm_sec == 17 
+                in_counted, out_counted = counter.show_counter()
+                day = gm_time.tm_mday
+                month = months_rus[gm_time.tm_mon - 1]
+                year = gm_time.tm_year
+                date = "{} {} {}".format(day, month, year)
+                send_message_daily(current_date=date, counter_in=in_counted, counter_out=out_counted)
+                counter = Counter(0, 0, 0)
+                VideoHandler = Writer()
+                VideoHandler.set_fps(fps)
 
 # python detect.py --cfg cfg/csdarknet53s-panet-spp.cfg --weights cfg/best14x-49.pt --source 0
 import json

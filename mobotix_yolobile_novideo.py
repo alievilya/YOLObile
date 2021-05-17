@@ -287,13 +287,13 @@ def detect(config):
             write_log(current_date=msg_h, counter_in=in_counted, counter_out=out_counted)
             counter = Counter(0, 0, 0)
             daily_in += in_counted
-            daily_in += out_counted
+            daily_out += out_counted
             if gm_time.tm_hour == time_to_send_msg:
                 day = gm_time.tm_mday
                 month = months_rus[gm_time.tm_mon - 1]
                 year = gm_time.tm_year
                 date = "{} {} {}".format(day, month, year)
-                send_message_daily(current_date=date, counter_in=daily_in, counter_out=daily_in)
+                send_message_daily(current_date=date, counter_in=daily_in, counter_out=daily_out)
 
 
 

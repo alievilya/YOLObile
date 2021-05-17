@@ -1,10 +1,7 @@
 {
-  "source0": "data_files/videos/test3.mov",
+  "source0": "data_files/videos/test1.mp4",
   "source": "rtsp://admin:admin@192.168.1.18:554/1/h264major",
-<<<<<<< HEAD
-=======
   "source2": "0",
->>>>>>> 36d3b4c5db80532facc75b2ac536f42ed91a4c9e
   "weights": "weights/best14x-49.pt",
   "weights0": "weights/best8x-514.pt",
   "config_deepsort": "deep_sort_pytorch/configs/deep_sort.yaml",
