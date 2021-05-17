@@ -265,8 +265,8 @@ def detect(config):
             fpeses.append(1 / delta_time)
         elif len(fpeses) == 30:
             median_fps = float(np.median(np.array(fpeses)))
-            # fps = round(median_fps, 1)
-            fps = 20
+            fps = round(median_fps, 1)
+            # fps = 20
             print('fps set: ', fps)
             # VideoHandler.set_fps(fps)
             counter.set_fps(fps)
