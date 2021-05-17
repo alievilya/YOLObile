@@ -96,3 +96,4 @@ video 19 06 30.mp4, action: зашел внутрь, centroid: 212, ratio_init: 
 video 19 30 14.mp4, action: вышел из кабинета, centroid: 299245, ratio_init: 0, ratio_door: 0, ratio: 0 
 video 20 11 21.mp4, action: вышел, centroid: 5769, ratio_init: 0, ratio_door: 0, ratio: 0 
 video 17 40 32.mp4, action: зашел внутрь, centroid: 40237, ratio_init: 0.36331695074767334, ratio_door: 0.09034821708668828, ratio: 0.09034821708668828 
+video 17 54 56.mp4, action: вышел из кабинета, centroid: 32674, ratio_init: 0, ratio_door: 0, ratio: 0 
