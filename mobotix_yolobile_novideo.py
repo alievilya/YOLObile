@@ -23,6 +23,8 @@ def detect(config):
     months_rus = ('января', 'февраля', 'марта', 'апреля',
                   'мая', 'июня', 'июля','августа',
                   'сентября', 'октября','ноября', 'декабря')
+    daily_in = 0
+    daily_out = 0
     fpeses = []
 
     left_array = None
@@ -30,10 +32,14 @@ def detect(config):
     token = "1868509329:AAHGNVxAuV2oCl_cf9O87jaYP4t7b0jRY7w"
 
     bot = telebot.TeleBot(token)
-
-    def send_message(current_date, counter_in, counter_out):
+    def send_message_hourly(hourly_msg, counter_in, counter_out):
         channel = '-1001399933919'
-        msg_tosend = "{}: зашло {}, вышло {}".format(current_date, counter_in, counter_out)
+        msg_tosend = "{} зашло: {}, вышло: {}".format(hourly_msg, counter_in, counter_out)
+        bot.send_message(chat_id=channel, text=msg_tosend)
+
+    def send_message_daily(current_date, counter_in, counter_out):
+        channel = '-1001399933919'
+        msg_tosend = "{}: зашло: {}, вышло: {}".format(current_date, counter_in, counter_out)
         bot.send_message(chat_id=channel, text=msg_tosend)
 
     def write_log(current_date, counter_in, counter_out):
@@ -273,15 +279,23 @@ def detect(config):
             # print('counter frames indoor: ', VideoHandler.counter_frames_indoor)
         # fps = 20
         gm_time = gmtime()
-        if gm_time.tm_hour == time_to_send_msg and not counter.just_inited:
-            day = gm_time.tm_mday
-            month = months_rus[gm_time.tm_mon - 1]
-            year = gm_time.tm_year
-            date = "{} {} {}".format(day, month, year)
+        if gm_time.tm_min == 0 and gm_time.tm_sec == 0 and not counter.just_inited:
             in_counted, out_counted = counter.show_counter()
-            send_message(current_date=date, counter_in=in_counted, counter_out=out_counted)
-            write_log(current_date=date, counter_in=in_counted, counter_out=out_counted)
+
+            msg_h = "с {} по {} ".format(gm_time.tm_hour - 1, gm_time.tm_hour)
+            send_message_hourly(hourly_msg=msg_h, counter_in=in_counted, counter_out=out_counted)
+            write_log(current_date=msg_h, counter_in=in_counted, counter_out=out_counted)
             counter = Counter(0, 0, 0)
+            daily_in += in_counted
+            daily_in += out_counted
+            if gm_time.tm_hour == time_to_send_msg:
+                day = gm_time.tm_mday
+                month = months_rus[gm_time.tm_mon - 1]
+                year = gm_time.tm_year
+                date = "{} {} {}".format(day, month, year)
+                send_message_daily(current_date=date, counter_in=daily_in, counter_out=daily_in)
+
+
 
 
 # python detect.py --cfg cfg/csdarknet53s-panet-spp.cfg --weights cfg/best14x-49.pt --source 0
