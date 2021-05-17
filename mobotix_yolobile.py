@@ -1,13 +1,32 @@
 import sys
 from time import gmtime
-
 import imutils.video
 import telebot
-
 from deep_sort_pytorch.deep_sort import DeepSort
 from deep_sort_pytorch.utils.parser import get_config
 from models import *  # set ONNX_EXPORT in models.py
 from tracking_modules import Counter, Writer
+from tracking_modules import find_centroid, Rectangle, bbox_rel, draw_boxes, select_object, \
+    find_ratio_ofbboxes
+from utils.datasets import *
+from utils.utils import *
+import sys
+
+from collections import OrderedDict
+import imutils.video
+
+sys.path.append('/venv/lib/python3.7/site-packages/')
+
+#pip3 install torch==1.7.0 torchvision==0.8.1 -f https://download.pytorch.org/whl/cu101/torch_stable.html
+
+
+
+def detect(config):
+    sent_videos = set()
+    fpeses = []
+    fps = 0
+
+
 from tracking_modules import find_centroid, Rectangle, bbox_rel, draw_boxes, find_ratio_ofbboxes
 from utils.datasets import *
 from utils.utils import *
@@ -28,18 +47,14 @@ def detect(config):
 
     left_array = None
     rect_left = None
-    # socket
-    HOST = "localhost"
-    PORT = 8015
-    token = "1868509329:AAHGNVxAuV2oCl_cf9O87jaYP4t7b0jRY7w"
 
+    token = "1868509329:AAHGNVxAuV2oCl_cf9O87jaYP4t7b0jRY7w"
     bot = telebot.TeleBot(token)
 
     def send_message(current_date, counter_in, counter_out):
         channel = '-1001399933919'
         msg_tosend = "{}: зашло {}, вышло {}".format(current_date, counter_in, counter_out)
         bot.send_message(chat_id=channel, text=msg_tosend)
-
     # camera info
     save_img = True
     imgsz = (416, 416) if ONNX_EXPORT else config[
@@ -102,7 +117,6 @@ def detect(config):
     _ = model(img.half() if half else img.float()) if device.type != 'cpu' else None  # run once
 
     for frame_idx, (path, img, im0s, vid_cap) in enumerate(dataset):
-        message_sent = False
         if rect_left is None:
             if webcam:  # batch_size >= 1
                 im0 = im0s[0].copy()
@@ -172,6 +186,7 @@ def detect(config):
                 counter.update_identities(identities)
 
                 for bbox_tracked, id_tracked in zip(bbox_xyxy, identities):
+
                     ratio_initial = find_ratio_ofbboxes(bbox=bbox_tracked, rect_compare=rect_left)
                     #  чел первый раз в контуре двери
                     if VideoHandler.counter_frames_indoor == 0:
@@ -199,7 +214,7 @@ def detect(config):
             deepsort.increment_ages()
             if counter.need_to_clear():
                 counter.clear_all()
-        # Stream results
+
         for val in counter.people_init.keys():
             # check bbox also
             cur_c = find_centroid(counter.cur_bbox[val])
@@ -243,11 +258,13 @@ def detect(config):
                     1e-3 * im0.shape[0], (255, 255, 255), 3)
 
         if VideoHandler.stop_writing(im0):
-            # sent_videos.add(VideoHandler.video_name)
+            # send_new_posts(video_name, action_occured)
+
+            sent_videos.add(VideoHandler.video_name)
             with open('data_files/logs2.txt', 'a', encoding="utf-8-sig") as wr:
                 wr.write(
                     'video {}, action: {}, vector {} \n'.format(VideoHandler.video_name, VideoHandler.action_occured,
-                                                                vector_person))
+                                                            vector_person))
 
             VideoHandler = Writer()
             VideoHandler.set_fps(fps)
@@ -261,6 +278,7 @@ def detect(config):
                 raise StopIteration
 
         delta_time = (torch_utils.time_synchronized() - t1)
+
         if len(fpeses) < 30:
             fpeses.append(1 / delta_time)
         elif len(fpeses) == 30:
