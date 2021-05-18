@@ -103,7 +103,7 @@ class MoveDetector():
             # continue
             return False
         # Resize and save a greyscale version of the image
-        self.frame = imutils.resize(self.frame, width=750)
+        self.frame = imutils.resize(self.frame, width=250)
         self.gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
         # Blur it to remove camera noise (reducing false positives)
         self.gray = cv2.GaussianBlur(self.gray, (17, 17), 0)
@@ -167,7 +167,7 @@ if __name__ == "__main__":
     with open("cfg/motion_detection_cfg.json") as config_file:
         config = json.load(config_file)
 
-    Motion = [MoveDetector() for _ in range(1)]
+    Motion = [MoveDetector() for _ in range(10)]
     # link ="rtsp://admin:admin@192.168.1.18:554/1/h264major"
     link = config["source"]
     print('opening link: ', link)
@@ -199,19 +199,19 @@ if __name__ == "__main__":
                 Motion[i].release_video(frame)
 
             # Interrupt trigger by pressing q to quit the open CV program
-            ch = cv2.waitKey(3)
-            if ch & 0xFF == ord('q'):
-                break
-        # delta_time = (time.time() - t0)
-        # if len(fpeses) < 35:
-        #     fpeses.append(round(1 / delta_time))
-        #     print(delta_time)
-        # elif len(fpeses) == 35:
-        #     # fps = round(np.median(np.array(fpeses)))
-        #     median_fps = float(np.median(np.array(fpeses)))
-        #     fps = round(median_fps, 2)
-        #     print('fps set: ', fps)
-        #     fpeses.append(fps)
+            # ch = cv2.waitKey(3)
+            # if ch & 0xFF == ord('q'):
+            #     break
+        delta_time = (time.time() - t0)
+        if len(fpeses) < 35:
+            fpeses.append(round(1 / delta_time))
+            print(delta_time)
+        elif len(fpeses) == 35:
+            # fps = round(np.median(np.array(fpeses)))
+            median_fps = float(np.median(np.array(fpeses)))
+            fps = round(median_fps, 2)
+            print('fps set: ', fps)
+            fpeses.append(fps)
 
         if not ret:
             break
