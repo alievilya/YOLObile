@@ -1,6 +1,6 @@
 {
   "time_msc": 21,
-  "source": "http://192.168.0.53/control/faststream.jpg?stream=full&preview&previewsize=640x480&quality=60&fps=20.0&camera=right",
+  "source": "http://192.168.0.53/control/faststream.jpg?stream=full&preview&previewsize=640x480&quality=60&fps=25.0&camera=right",
   "source0": "data_files/videos/test3.mov",
   "source778": "http://10.22.1.52/control/faststream.jpg?stream=full&preview&previewsize=640x480&quality=30&fps=15.0&camera=right",
   "img_size": 416,

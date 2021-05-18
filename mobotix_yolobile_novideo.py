@@ -186,9 +186,9 @@ def detect(config):
 
                     if id_tracked not in counter.people_init or counter.people_init[id_tracked] == 0:
                         counter.obj_initialized(id_tracked)
-                        if ratio_initial >= 0.7 and bbox_tracked[3] < left_array[3]:
+                        if ratio_initial >= 0.7 and bbox_tracked[2] < left_array[2]:
                             counter.people_init[id_tracked] = 2
-                        elif ratio_initial < 0.7 and bbox_tracked[3] > left_array[3]:
+                        elif ratio_initial < 0.7 and bbox_tracked[2] > left_array[2]:
                             counter.people_init[id_tracked] = 1
                         else:
                             # res is None, means that object is not in door contour
@@ -215,7 +215,7 @@ def detect(config):
                 # in the exit direction
                 ratio = find_ratio_ofbboxes(bbox=counter.cur_bbox[val], rect_compare=rect_left)
                 if vector_person[0] > im0.shape[1]/5 and counter.people_init[val] == 2 \
-                        and ratio < 0.7:
+                        and ratio < 0.5:
                     counter.get_out()
                     # VideoHandler.stop_recording(action_occured="вышел из кабинета")
                     # print('video {}, action: {}, vector {} \n'.format(VideoHandler.video_name,
@@ -223,7 +223,7 @@ def detect(config):
                     #                                                   vector_person))
 
                 elif vector_person[0] < -1*im0.shape[1]/5 and counter.people_init[val] == 1 \
-                        and ratio >= 0.7:
+                        and ratio >= 0.5:
                     counter.get_in()
                     # VideoHandler.stop_recording(action_occured="вышел из кабинета")
                     # print('video {}, action: {}, vector {} \n'.format(VideoHandler.video_name,
@@ -267,8 +267,8 @@ def detect(config):
             median_fps = float(np.median(np.array(fpeses)))
             fps = round(median_fps, 1)
             print('fps max: ', fps)
-            if fps > 20:
-                fps = 20
+            if fps > 25:
+                fps = 25
             # VideoHandler.set_fps(fps)
             counter.set_fps(fps)
             fpeses.append(fps)
@@ -288,6 +288,12 @@ def detect(config):
             send_message_hourly(hourly_msg=msg_h, counter_in=in_counted, counter_out=out_counted)
             write_log(current_date=msg_h, counter_in=in_counted, counter_out=out_counted)
             counter = Counter(0, 0, 0)
+            deepsort = DeepSort(cfg.DEEPSORT.REID_CKPT,
+                        max_dist=cfg.DEEPSORT.MAX_DIST, min_confidence=cfg.DEEPSORT.MIN_CONFIDENCE,
+                        nms_max_overlap=cfg.DEEPSORT.NMS_MAX_OVERLAP, max_iou_distance=cfg.DEEPSORT.MAX_IOU_DISTANCE,
+                        max_age=cfg.DEEPSORT.MAX_AGE, n_init=cfg.DEEPSORT.N_INIT, nn_budget=cfg.DEEPSORT.NN_BUDGET,
+                        use_cuda=True)
+                        
             daily_in += in_counted
             daily_out += out_counted
             if gm_time.tm_hour == time_to_send_msg:
@@ -296,6 +302,8 @@ def detect(config):
                 year = gm_time.tm_year
                 date = "{} {} {}".format(day, month, year)
                 send_message_daily(current_date=date, counter_in=daily_in, counter_out=daily_out)
+                daily_in = 0
+                daily_out = 0
 
 
 

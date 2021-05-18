@@ -44,8 +44,8 @@ class MoveDetector():
         # self.around_door_array = [507, 24, 724, 374]
         # self.around_door_array = [403, 205, 535, 373]
         # self.around_door_array = [344, 28, 787, 523]  # in1
-        self.around_door_array = [507, 24, 724, 374]  # in1
-        # self.around_door_array = [0, 0, 624, 574]  # in1
+        #self.around_door_array = [507, 24, 724, 374]  # in1
+        self.around_door_array = [0, 0, 640, 480]  # in1
         self.rect_around_door = Rectangle(self.around_door_array[0], self.around_door_array[1],
                                           self.around_door_array[2], self.around_door_array[3])
         self.first_frame = None
@@ -103,7 +103,7 @@ class MoveDetector():
             # continue
             return False
         # Resize and save a greyscale version of the image
-        self.frame = imutils.resize(self.frame, width=250)
+        self.frame = imutils.resize(self.frame, width=640)
         self.gray = cv2.cvtColor(self.frame, cv2.COLOR_BGR2GRAY)
         # Blur it to remove camera noise (reducing false positives)
         self.gray = cv2.GaussianBlur(self.gray, (17, 17), 0)
@@ -167,9 +167,9 @@ if __name__ == "__main__":
     with open("cfg/motion_detection_cfg.json") as config_file:
         config = json.load(config_file)
 
-    Motion = [MoveDetector() for _ in range(10)]
+    Motion = [MoveDetector() for _ in range(1)]
     # link ="rtsp://admin:admin@192.168.1.18:554/1/h264major"
-    link = config["source"]
+    link = config["source_mobo"]
     print('opening link: ', link)
     cap = cv2.VideoCapture(link)  # Then start the webcam
     ret = True
