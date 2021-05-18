@@ -30,15 +30,13 @@ def detect(config):
     left_array = None
     rect_left = None
     token = "1868509329:AAHGNVxAuV2oCl_cf9O87jaYP4t7b0jRY7w"
-
+    channel = '-1001399933919'
     bot = telebot.TeleBot(token)
     def send_message_hourly(hourly_msg, counter_in, counter_out):
-        channel = '-1001399933919'
         msg_tosend = "{} зашло: {}, вышло: {}".format(hourly_msg, counter_in, counter_out)
         bot.send_message(chat_id=channel, text=msg_tosend)
 
     def send_message_daily(current_date, counter_in, counter_out):
-        channel = '-1001399933919'
         msg_tosend = "{}: зашло: {}, вышло: {}".format(current_date, counter_in, counter_out)
         bot.send_message(chat_id=channel, text=msg_tosend)
 
@@ -109,12 +107,14 @@ def detect(config):
         if rect_left is None:
             if webcam:  # batch_size >= 1
                 im0 = im0s[0].copy()
+                print('stream with size {}x{} is opened'.format(im0.shape[1], im0.shape[0]))
             else:
                 im0 = im0s
+                print('video with size {}x{} is opened'.format(im0.shape[1], im0.shape[0]))
+
             left_array = [0, 0, im0.shape[1] / 2, im0.shape[0]]
             rect_left = Rectangle(left_array[0], left_array[1], left_array[2], left_array[3])
 
-        flag_anyone_in_door = False
         img = torch.from_numpy(img).to(device)
         img = img.half() if half else img.float()  # uint8 to fp16/32
         img /= 255.0  # 0 - 255 to 0.0 - 1.0
@@ -186,9 +186,9 @@ def detect(config):
 
                     if id_tracked not in counter.people_init or counter.people_init[id_tracked] == 0:
                         counter.obj_initialized(id_tracked)
-                        if ratio_initial >= 0.8 and bbox_tracked[3] < left_array[3]:
+                        if ratio_initial >= 0.7 and bbox_tracked[3] < left_array[3]:
                             counter.people_init[id_tracked] = 2
-                        elif ratio_initial < 0.8 and bbox_tracked[3] > left_array[3]:
+                        elif ratio_initial < 0.7 and bbox_tracked[3] > left_array[3]:
                             counter.people_init[id_tracked] = 1
                         else:
                             # res is None, means that object is not in door contour
@@ -214,7 +214,7 @@ def detect(config):
                 # if vector_person < 0 then current coord is less than initialized, it means that man is going
                 # in the exit direction
                 ratio = find_ratio_ofbboxes(bbox=counter.cur_bbox[val], rect_compare=rect_left)
-                if vector_person[0] > 200 and counter.people_init[val] == 2 \
+                if vector_person[0] > im0.shape[1]/5 and counter.people_init[val] == 2 \
                         and ratio < 0.7:
                     counter.get_out()
                     # VideoHandler.stop_recording(action_occured="вышел из кабинета")
@@ -222,7 +222,7 @@ def detect(config):
                     #                                                   VideoHandler.action_occured,
                     #                                                   vector_person))
 
-                elif vector_person[0] < -100 and counter.people_init[val] == 1 \
+                elif vector_person[0] < -1*im0.shape[1]/5 and counter.people_init[val] == 1 \
                         and ratio >= 0.7:
                     counter.get_in()
                     # VideoHandler.stop_recording(action_occured="вышел из кабинета")
@@ -279,7 +279,7 @@ def detect(config):
             # print('counter frames indoor: ', VideoHandler.counter_frames_indoor)
         # fps = 20
         gm_time = gmtime()
-        if gm_time.tm_min == 0 and gm_time.tm_sec == 0 and not counter.just_inited:
+        if gm_time.tm_min == 0 and gm_time.tm_sec == 1 and not counter.just_inited:
             in_counted, out_counted = counter.show_counter()
 
             msg_h = "с {} по {} ".format(gm_time.tm_hour - 1, gm_time.tm_hour)
