@@ -259,9 +259,10 @@ def detect(config):
             fpeses.append(1 / delta_time)
         elif len(fpeses) == 30:
             median_fps = float(np.median(np.array(fpeses)))
-            # fps = round(median_fps, 1)
-            fps = 20
-            print('fps set: ', fps)
+            fps = round(median_fps, 1)
+            print('fps max: ', fps)
+            #fps = 15
+
             # VideoHandler.set_fps(fps)
             counter.set_fps(fps)
             fpeses.append(fps)
@@ -273,11 +274,11 @@ def detect(config):
             # print('counter frames indoor: ', VideoHandler.counter_frames_indoor)
         # fps = 20
         gm_time = gmtime()
-        if gm_time.tm_hour == time_to_send_msg and not counter.just_inited:
+        if gm_time.tm_min==0 and gm_time.tm_sec==0 and not counter.just_inited:
             day = gm_time.tm_mday
             month = months_rus[gm_time.tm_mon - 1]
             year = gm_time.tm_year
-            date = "{} {} {}".format(day, month, year)
+            date = "{}:00 {} {} {}".format(gm_time.tm_hour, day, month, year)
             in_counted, out_counted = counter.show_counter()
             send_message(current_date=date, counter_in=in_counted, counter_out=out_counted)
             write_log(current_date=date, counter_in=in_counted, counter_out=out_counted)
