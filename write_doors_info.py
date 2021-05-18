@@ -112,14 +112,14 @@ def read_door_info(name=None):
 
 
 if __name__ == "__main__":
-    files = os.listdir('../data_files/videos')
+    files = os.listdir('data_files/videos')
     doors_arr = {}
     around_doors_arr = {}
     action_name1 = 'choose door where man is getting lost in frame'
     action_name2 = 'choose region around the door, where the video should start writing'
     print('', action_name1)
     for file in files:
-        file_path = os.path.join('../data_files/videos', file)
+        file_path = os.path.join('data_files/videos', file)
         # file_path = os.path.join("rtsp://admin:admin@192.168.1.52:554/1/h264major")
         video_capture = cv2.VideoCapture(file_path)
         ret, first_frame = video_capture.read()
@@ -130,7 +130,7 @@ if __name__ == "__main__":
 
     print('', action_name2)
     for file in files:
-        file_path = os.path.join('../data_files/videos', file)
+        file_path = os.path.join('data_files/videos', file)
         video_capture = cv2.VideoCapture(file_path)
         ret, first_frame = video_capture.read()
         cv2.putText(first_frame, "{}".format(action_name2), (10, 35), 0,
@@ -138,11 +138,13 @@ if __name__ == "__main__":
         door = select_object(first_frame)
         around_doors_arr[file] = door
 
-    with open('data_files/doors_info.csv', 'w') as f:
+    mode = 'a' if os.path.exists('data_files/doors_info.csv') else 'w'
+    with open('data_files/doors_info.csv', mode) as f:
         for name in doors_arr.keys():
             f.write(str(name) + ';' + str(doors_arr[name][0]) + '\n')
 
-    with open('data_files/around_doors_info.csv', 'w') as f:
+    mode1 = 'a' if os.path.exists('data_files/around_doors_info.csv') else 'w'
+    with open('data_files/around_doors_info.csv', mode1) as f:
         for name in around_doors_arr.keys():
             f.write(str(name) + ';' + str(around_doors_arr[name][0]) + '\n')
     doors_info = read_door_info(name='data_files/doors_info.csv')

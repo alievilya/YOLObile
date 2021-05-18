@@ -1,7 +1,7 @@
 {
   "time_msc": 20,
   "source0": "http://10.22.1.52/control/faststream.jpg?stream=full&preview&previewsize=640x480&quality=30&fps=15.0&camera=right",
-  "source": "data_files/videos/test3.mov",
+  "source": "data_files/videos/test1.mp4",
   "img_size": 416,
   "output": "output",
   "weights": "weights/best14x-49.pt",
