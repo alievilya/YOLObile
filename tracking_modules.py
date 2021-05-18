@@ -29,6 +29,7 @@ def get_truth(video_name):
 
 class Counter:
     def __init__(self, counter_in=0, counter_out=0, track_id=0):
+
         self.just_inited = True
         self.frames_without_moves = 0
         self.fps = 20
@@ -220,10 +221,10 @@ class MotionDetector():
 
 class Writer():
     def __init__(self):
-        self.fps = 3
+        self.fps = 20
         self.max_counter_frames_indoor = self.fps * 12
         # self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
-        self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+        self.fourcc = cv2.VideoWriter_fourcc(*'X264')
         self.counter_frames_indoor = 0
         self.flag_stop_writing = False
         self.flag_writing_video = False

@@ -4,6 +4,7 @@ import cv2
 import os
 import time
 import argparse
+import telebot
 
 from deep_sort_pytorch.deep_sort import DeepSort
 from deep_sort_pytorch.utils.parser import get_config
@@ -69,6 +70,22 @@ def xyxy_to_xywh(bbox_xyxy):
 
 
 def detect(config):
+    TIME_TO_SEND_MSG_MSC = int(config["time_msc"])  # Greenvich Time
+    time_to_send_msg = TIME_TO_SEND_MSG_MSC - 3
+    months_rus = ('января', 'февраля', 'марта', 'апреля',
+                  'мая', 'июня', 'июля','августа',
+                  'сентября', 'октября','ноября', 'декабря')
+    
+    token = "1780388562:AAEzyzS9YRCPQF6rME6A9U4lWArR6QDDYYM"
+    bot = telebot.TeleBot(token)
+    
+    def send_message_daily(current_date, counter_in, counter_out):
+        channel = '-1001388181852'
+        msg_tosend = "{}: зашло: {}, вышло: {}".format(current_date, counter_in, counter_out)
+        bot.send_message(chat_id=channel, text=msg_tosend)
+
+    daily_in = 0
+    daily_out = 0
     COLOR_AROUND_DOOR = (48, 58, 221)
     COLOR_DOOR = (23, 158, 21)
     COLOR_LINE = (214, 4, 54)
@@ -91,7 +108,7 @@ def detect(config):
     rect_around_door = Rectangle(around_door_array[0], around_door_array[1], around_door_array[2], around_door_array[3])
     # socket
     HOST = "localhost"
-    PORT = 8083
+    PORT = 8086
     # camera info
     save_img = True
     imgsz = (416, 416) if ONNX_EXPORT else config[
@@ -134,6 +151,7 @@ def detect(config):
         dataset = LoadStreams(source, img_size=imgsz)
     else:
         save_img = True
+        torch.backends.cudnn.benchmark = True  # set True to speed up constant image size inference
         dataset = LoadImages(source, img_size=imgsz)
     img = torch.zeros((3, imgsz, imgsz), device=device)  # init img
 
@@ -163,6 +181,7 @@ def detect(config):
             scaled_pred = []
             scaled_conf = []
             detections = torch.Tensor()
+
             for i, (det, conf, cls) in enumerate(zip(preds, confs, clss)):
                 if det is not None and len(det):
                     if names[int(cls)] not in config["needed_classes"]:
@@ -211,8 +230,6 @@ def detect(config):
                         counter.cur_bbox[id_tracked] = bbox_tracked
             else:
                 deepsort.increment_ages()
-                if counter.need_to_clear():
-                    counter.clear_all()
             # Stream results
             vals_to_del = []
             for val in counter.people_init.keys():
@@ -232,7 +249,7 @@ def detect(config):
                         vals_to_del.append(val)
 
                     elif counter.people_init[val] == 1 \
-                            and ratio >= 0.4 and centroid_distance < 5000:
+                            and ratio >= 0.4 and centroid_distance < 5000 and low_border < counter.cur_bbox[val][3] < high_border:
                         print('ratio in: {}\n centroids: {}\n'.format(ratio, centroid_distance))
                         counter.get_in()
                         counter.people_init[val] = -1
@@ -240,10 +257,8 @@ def detect(config):
                         vals_to_del.append(val)
                     lost_ids.remove(val)
 
-                # TODO maybe delete this condition
                 elif counter.frame_age_counter.get(val, 0) >= counter.max_frame_age_counter \
                         and counter.people_init[val] == 2:
-
                     if ratio < 0.2 and centroid_distance > 10000:
                         counter.get_out()
                         print('ratio out max frames: ', ratio)
@@ -293,7 +308,7 @@ def detect(config):
 
             else:
                 VideoHandler.continue_writing(im0, flag_anyone_in_door)
-            if view_img is True:
+            if view_img == 'True':
                 cv2.imshow('image', im0)
                 cv2.waitKey(1)
                 if cv2.waitKey(1) == ord('q'):  # q to quit
@@ -311,7 +326,8 @@ def detect(config):
                 median_fps = float(np.median(np.array(fpeses)))
                 fps = round(median_fps, 2)
                 print('max fps: ', fps)
-                fps = 20
+                if fps > 20:
+                    fps = 20                  
                 VideoHandler.set_fps(fps)
                 counter.set_fps(fps)
                 fpeses.append(fps)
@@ -327,6 +343,23 @@ def detect(config):
                     print('counter frames indoor: {}'.format(VideoHandler.counter_frames_indoor))
                     # fps = 20
 
+            gm_time = time.gmtime()
+            if gm_time.tm_hour == time_to_send_msg and gm_time.tm_min == 0 and gm_time.tm_sec == 1 and not counter.just_inited: 
+                in_counted, out_counted = counter.show_counter()
+                day = gm_time.tm_mday
+                month = months_rus[gm_time.tm_mon - 1]
+                year = gm_time.tm_year
+                date = "{} {} {}".format(day, month, year)
+                send_message_daily(current_date=date, counter_in=in_counted, counter_out=out_counted)
+                counter = Counter(0, 0, 0)
+                VideoHandler = Writer()
+                deepsort = DeepSort(cfg.DEEPSORT.REID_CKPT,
+                        max_dist=cfg.DEEPSORT.MAX_DIST, min_confidence=cfg.DEEPSORT.MIN_CONFIDENCE,
+                        nms_max_overlap=cfg.DEEPSORT.NMS_MAX_OVERLAP, max_iou_distance=cfg.DEEPSORT.MAX_IOU_DISTANCE,
+                        max_age=cfg.DEEPSORT.MAX_AGE, n_init=cfg.DEEPSORT.N_INIT, nn_budget=cfg.DEEPSORT.NN_BUDGET,
+                        use_cuda=True)
+
+                VideoHandler.set_fps(fps)
 
 # python detect.py --cfg cfg/csdarknet53s-panet-spp.cfg --weights cfg/best14x-49.pt --source 0
 import json
