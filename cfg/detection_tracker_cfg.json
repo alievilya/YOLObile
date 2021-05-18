@@ -1,4 +1,5 @@
 {
+  "time_msc": 21,
   "source0": "data_files/videos/test1.mp4",
   "source": "rtsp://admin:admin@192.168.1.18:554/1/h264major",
   "source2": "0",
@@ -18,7 +19,7 @@
   "augment": "False",
   "agnostic_nms": "False",
   "half": "True",
-  "view_img": "True",
+  "view_img": "False",
   "save_txt": "False",
   "category_num": 80,
   "model": "yolov4-tiny-416",

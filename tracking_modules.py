@@ -221,7 +221,7 @@ class MotionDetector():
 
 class Writer():
     def __init__(self):
-        self.fps = 3
+        self.fps = 20
         self.max_counter_frames_indoor = self.fps * 12
         # self.fourcc = cv2.VideoWriter_fourcc(*'MP4V')
         self.fourcc = cv2.VideoWriter_fourcc(*'X264')

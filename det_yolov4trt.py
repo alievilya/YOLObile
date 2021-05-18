@@ -70,8 +70,8 @@ def xyxy_to_xywh(bbox_xyxy):
 
 
 def detect(config):
-    #TIME_TO_SEND_MSG_MSC = int(config["time_msc"])  # Greenvich Time
-    #time_to_send_msg = TIME_TO_SEND_MSG_MSC - 3
+    TIME_TO_SEND_MSG_MSC = int(config["time_msc"])  # Greenvich Time
+    time_to_send_msg = TIME_TO_SEND_MSG_MSC - 3
     months_rus = ('января', 'февраля', 'марта', 'апреля',
                   'мая', 'июня', 'июля','августа',
                   'сентября', 'октября','ноября', 'декабря')
@@ -344,7 +344,7 @@ def detect(config):
                     # fps = 20
 
             gm_time = time.gmtime()
-            if gm_time.tm_hour == 14 and not counter.just_inited: #and gm_time.tm_min == 18 and gm_time.tm_sec == 17 
+            if gm_time.tm_hour == time_to_send_msg and gm_time.tm_min == 0 and gm_time.tm_sec == 1 and not counter.just_inited: 
                 in_counted, out_counted = counter.show_counter()
                 day = gm_time.tm_mday
                 month = months_rus[gm_time.tm_mon - 1]
