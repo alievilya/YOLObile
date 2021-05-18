@@ -186,9 +186,9 @@ def detect(config):
 
                     if id_tracked not in counter.people_init or counter.people_init[id_tracked] == 0:
                         counter.obj_initialized(id_tracked)
-                        if ratio_initial >= 0.7 and bbox_tracked[2] < left_array[2]:
+                        if ratio_initial >= 0.5 and bbox_tracked[2] < left_array[2]:
                             counter.people_init[id_tracked] = 2
-                        elif ratio_initial < 0.7 and bbox_tracked[2] > left_array[2]:
+                        elif ratio_initial < 0.5 and bbox_tracked[2] > left_array[2]:
                             counter.people_init[id_tracked] = 1
                         else:
                             # res is None, means that object is not in door contour
@@ -273,7 +273,8 @@ def detect(config):
             counter.set_fps(fps)
             fpeses.append(fps)
             motion_detection = True
-        # else:
+        else:
+            print('fps: {}'.format(round(1 / delta_time, 1)))
             # print('\nflag writing video: ', VideoHandler.flag_writing_video)
             # print('flag stop writing: ', VideoHandler.flag_stop_writing)
             # print('flag anyone in door: ', flag_anyone_in_door)
