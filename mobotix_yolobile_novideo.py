@@ -282,7 +282,7 @@ def detect(config):
         if gm_time.tm_min == 0 and gm_time.tm_sec == 1 and not counter.just_inited:
             in_counted, out_counted = counter.show_counter()
 
-            msg_h = "с {} по {} ".format(gm_time.tm_hour - 1, gm_time.tm_hour)
+            msg_h = "с {} по {} ".format(gm_time.tm_hour + 2, gm_time.tm_hour + 3)
             send_message_hourly(hourly_msg=msg_h, counter_in=in_counted, counter_out=out_counted)
             write_log(current_date=msg_h, counter_in=in_counted, counter_out=out_counted)
             counter = Counter(0, 0, 0)
