@@ -98,17 +98,19 @@ def detect(config):
     # door_array = [475, 69, 557, 258]
     global flag, vid_writer, lost_ids
     # initial parameters
-    door_array = [611, 70, 663, 310]
+    # door_array = [611, 70, 663, 310]
+    door_array = [611, 70, 670, 310]
     around_door_array = [507, 24, 724, 374]
-    low_border = 225
-    high_border = 342
+    #low_border = 225
+    low_border = 250
+    high_border = 325
     #
     door_c = find_centroid(door_array)
     rect_door = Rectangle(door_array[0], door_array[1], door_array[2], door_array[3])
     rect_around_door = Rectangle(around_door_array[0], around_door_array[1], around_door_array[2], around_door_array[3])
     # socket
     HOST = "localhost"
-    PORT = 8086
+    PORT = 8085
     # camera info
     save_img = True
     imgsz = (416, 416) if ONNX_EXPORT else config[
@@ -199,10 +201,15 @@ def detect(config):
                 if len(outputs) > 0:
                     bbox_xyxy = outputs[:, :4]
                     identities = outputs[:, -1]
-                    draw_boxes(im0, bbox_xyxy, identities)
+                    #draw_boxes(im0, bbox_xyxy, identities)
                     # print('bbox_xywh ', bbox_xywh, 'id', identities)
                     counter.update_identities(identities)
                     for bbox_tracked, id_tracked in zip(bbox_xyxy, identities):
+
+                        cv2.rectangle(im0, (int(bbox_tracked[0]), int(bbox_tracked[1])),
+                          (int(bbox_tracked[2]), int(bbox_tracked[3])),
+                          COLOR_AROUND_DOOR, 3)
+
                         ratio_initial = find_ratio_ofbboxes(bbox=bbox_tracked, rect_compare=rect_around_door)
                         ratio_door = find_ratio_ofbboxes(bbox=bbox_tracked, rect_compare=rect_door)
                         #  чел первый раз в контуре двери
@@ -216,10 +223,10 @@ def detect(config):
                             flag_anyone_in_door = True
                         if id_tracked not in counter.people_init or counter.people_init[id_tracked] == 0:
                             counter.obj_initialized(id_tracked)
-                            if ratio_door >= 0.2 and low_border < bbox_tracked[3] < high_border :
+                            if ratio_door >= 0.4 and bbox_tracked[3] > low_border and bbox_tracked[3] < high_border :
                                 #     was initialized in door, probably going out of office
                                 counter.people_init[id_tracked] = 2
-                            elif ratio_door < 0.2:
+                            elif ratio_door < 0.4:
                                 #     initialized in the corridor, mb going in
                                 counter.people_init[id_tracked] = 1
                             # else:
@@ -280,9 +287,9 @@ def detect(config):
                           (int(door_array[2]), int(door_array[3])),
                           COLOR_DOOR, 3)
 
-            cv2.rectangle(im0, (int(around_door_array[0]), int(around_door_array[1])),
-                          (int(around_door_array[2]), int(around_door_array[3])),
-                          COLOR_AROUND_DOOR, 3)
+            #cv2.rectangle(im0, (int(around_door_array[0]), int(around_door_array[1])),
+             #             (int(around_door_array[2]), int(around_door_array[3])),
+              #            COLOR_AROUND_DOOR, 3)
 
             cv2.putText(im0, "in: {}, out: {} ".format(ins, outs), (10, 35), 0,
                         1e-3 * im0.shape[0], (255, 255, 255), 3)

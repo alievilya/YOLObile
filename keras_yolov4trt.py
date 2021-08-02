@@ -91,7 +91,7 @@ def detect(config):
     rect_around_door = Rectangle(around_door_array[0], around_door_array[1], around_door_array[2], around_door_array[3])
     # socket
     HOST = "localhost"
-    PORT = 8083
+    PORT = 8084
     # camera info
     save_img = True
     imgsz = (416, 416) if ONNX_EXPORT else config[

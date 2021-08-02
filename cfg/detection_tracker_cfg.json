@@ -1,7 +1,7 @@
 {
-  "time_msc": 21,
+  "time_msc": 22,
   "source0": "data_files/videos/test1.mp4",
-  "source": "rtsp://admin:admin@192.168.1.18:554/1/h264major",
+  "source": "rtsp://admin:admin@192.168.1.54:554/0/h264major",
   "source2": "0",
   "weights": "weights/best14x-49.pt",
   "weights0": "weights/best8x-514.pt",
